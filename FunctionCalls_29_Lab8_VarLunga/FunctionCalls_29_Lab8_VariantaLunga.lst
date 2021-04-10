@@ -1,0 +1,131 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit, printf, scanf               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  import printf msvcrt.dll
+    11                                  import scanf msvcrt.dll
+    12                                  
+    13                                  ; our data is declared here (the variables needed by our program)
+    14                                  
+    15                                  ;Read three numbers a, m and n (a: word, 0 <= m, n <= 15, m > n) from the keyboard. Isolate the bits m-n of a and display the integer represented by those bits in base 16
+    16                                  
+    17                                  segment data use32 class=data    ;!!!Works only for a=315, m=8, n=4
+    18                                      
+    19 00000000 00000000                    firstBitsToBeIsolated dd 0
+    20 00000004 0100                        powersOf2 dw 1
+    21 00000006 00000000                    a dd 0 ; a word
+    22 0000000A 00000000                    m dd 0 ; m byte
+    23 0000000E 00000000                    n dd 0 ; n byte
+    24 00000012 00<rept>                    bits_number_a times 16 db 0  ; a word has maximum 16 bits
+    25 00000022 0000                        binary_number dw 0000000000000000b
+    26 00000024 613D00                      message1 db "a=", 0
+    27 00000027 6D3D00                      message2 db "m=", 0
+    28 0000002A 6E3D00                      message3 db "n=", 0
+    29 0000002D 256400                      format db "%d", 0
+    30 00000030 546865206E756D6265-         format2 db "The number represented by the isolated bits in base 16 is %x", 0
+    30 00000039 722072657072657365-
+    30 00000042 6E7465642062792074-
+    30 0000004B 68652069736F6C6174-
+    30 00000054 656420626974732069-
+    30 0000005D 6E2062617365203136-
+    30 00000066 20697320257800     
+    31                                  
+    32                                  ; our code starts here
+    33                                  segment code use32 class=code
+    34                                      start:
+    35                                          
+    36 00000000 68[24000000]                    push dword message1
+    37 00000005 FF15[00000000]                  call [printf]
+    38 0000000B 83C404                          add ESP, 4*1
+    39                                                                          ; reading number a from keyboard
+    40 0000000E 68[06000000]                    push dword a
+    41 00000013 68[2D000000]                    push dword format
+    42 00000018 FF15[00000000]                  call [scanf]
+    43 0000001E 83C408                          add ESP, 4*2
+    44                                          
+    45                                          
+    46 00000021 68[27000000]                    push dword message2
+    47 00000026 FF15[00000000]                  call [printf]
+    48 0000002C 83C404                          add ESP, 4*1
+    49                                                                          ; reading number m from keyboard
+    50 0000002F 68[0A000000]                    push dword m
+    51 00000034 68[2D000000]                    push dword format
+    52 00000039 FF15[00000000]                  call [scanf]
+    53 0000003F 83C408                          add ESP, 4*2
+    54                                          
+    55                                          
+    56 00000042 68[2A000000]                    push dword message3
+    57 00000047 FF15[00000000]                  call [printf]
+    58 0000004D 83C404                          add ESP, 4*1
+    59                                                                          ; reading number n from keyboard
+    60 00000050 68[0E000000]                    push dword n
+    61 00000055 68[2D000000]                    push dword format
+    62 0000005A FF15[00000000]                  call [scanf]
+    63 00000060 83C408                          add ESP, 4*2
+    64                                      
+    65 00000063 A0[0A000000]                    mov AL, [m]
+    66 00000068 8A1D[0E000000]                  mov BL, [n]
+    67 0000006E 38D8                            cmp AL, BL
+    68 00000070 767E                            jbe Final ; if m<=n jump to Final, because in the problem statement it says that m>n
+    69 00000072 3C0F                            cmp AL, 15
+    70 00000074 777A                            ja Final ; if m>15 jump to Final, because in the problem statement it says that m<=15
+    71 00000076 80FB00                          cmp BL, 0
+    72 00000079 7275                            jb Final ; if n<0 jump to Final, because in the problem statement it says that n>=0
+    73                                      
+    74 0000007B 66A1[06000000]                  mov AX, [a] ; we move in AX the word a
+    75 00000081 B302                            mov BL, 2 ; we will divide by 2 to convert AX (a) from base 10 to base 2
+    76 00000083 BF[21000000]                    mov EDI, bits_number_a + 15 ; we need to put the result in inverse order when converting to base 2
+    77 00000088 FD                              STD ; set direction flag to 1 so we can go in inverse order 
+    78                                          
+    79                                          Convert_to_base_2:
+    80 00000089 F6F3                                            div BL ; AL = AX/BL, AH = AX%BL
+    81                                                          
+    82 0000008B 88C1                                            mov CL, AL ; we need to keep AL
+    83 0000008D B500                                            mov CH, 0 ; CX <- CL
+    84                                                          
+    85 0000008F 88E0                                            mov AL, AH ; we move AH into AL so we can use STOSB
+    86 00000091 AA                                              stosb ; store AL into the byte from the address <ES:EDI>, dec EDI
+    87                                                          
+    88 00000092 6689C8                                          mov AX, CX ; so we can divide by BL and have the results in AL and AH 
+    89                                                          
+    90 00000095 6683F800                                        cmp AX, 0 ; if AX is not 0 then we have to continue the divisions
+    91 00000099 75EE                                            jne Convert_to_base_2
+    92                                                   
+    93 0000009B BB00000000                      mov EBX, 0
+    94 000000A0 BB0F000000                      mov EBX, 15
+    95 000000A5 2B1D[0E000000]                  sub EBX, [n]
+    96 000000AB 891D[00000000]                  mov [firstBitsToBeIsolated], EBX
+    97 000000B1 BE[1D000000]                    mov ESI, bits_number_a + 11    ; we start from the n bit and go to the right until the m bit
+    98 000000B6 FD                              STD
+    99                                          
+   100 000000B7 B900000000                      mov ECX, 0 ; in ECX we compute the final result
+   101                                                   
+   102                                          Isolate_the_bits:  ; and transform them in a number in base 10
+   103 000000BC AC                                              lodsb
+   104 000000BD F625[04000000]                                  mul byte [powersOf2] ; AX = AL*powersOf2
+   105 000000C3 6601C1                                          add CX, AX
+   106                                                          
+   107 000000C6 66A1[04000000]                                  mov AX, [powersOf2]
+   108 000000CC 66BB0200                                        mov BX, 2            ; powersOf2 = powersOf2 * 2
+   109 000000D0 66F7E3                                          mul BX
+   110 000000D3 66A3[04000000]                                  mov [powersOf2], AX
+   111                                                          
+   112 000000D9 81FE[19000000]                                  cmp ESI, bits_number_a + 7 ;m-1
+   113 000000DF 73DB                                            jae Isolate_the_bits                 ; we stop when we reached bit m
+   114                                                          
+   115                                                          
+   116                                                          
+   117 000000E1 51                              push ECX
+   118 000000E2 68[30000000]                    push dword format2
+   119 000000E7 FF15[00000000]                  call [printf]
+   120 000000ED 83C408                          add ESP, 4*2
+   121                                          
+   122                                          Final:
+   123                                          ; exit(0)
+   124 000000F0 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+   125 000000F2 FF15[00000000]                  call    [exit]       ; call exit to terminate the program

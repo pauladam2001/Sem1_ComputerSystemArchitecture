@@ -1,0 +1,105 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit, printf, scanf               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  import printf msvcrt.dll
+    11                                  import scanf msvcrt.dll
+    12                                  
+    13                                  ; our data is declared here (the variables needed by our program)
+    14                                  
+    15                                  ;Read three numbers a, m and n (a: word, 0 <= m, n <= 15, m > n) from the keyboard. Isolate the bits m-n of a and display the integer represented by those bits in base 16
+    16                                  
+    17                                  segment data use32 class=data  
+    18                                      
+    19 00000000 00000000                    a dd 0 ; a word
+    20 00000004 00000000                    m dd 0 ; m byte
+    21 00000008 00000000                    n dd 0 ; n byte
+    22 0000000C 613D00                      message1 db "a=", 0
+    23 0000000F 6D3D00                      message2 db "m=", 0
+    24 00000012 6E3D00                      message3 db "n=", 0
+    25 00000015 256400                      format db "%d", 0
+    26 00000018 546865206E756D6265-         format2 db "The number represented by the isolated bits in base 16 is %x", 0
+    26 00000021 722072657072657365-
+    26 0000002A 6E7465642062792074-
+    26 00000033 68652069736F6C6174-
+    26 0000003C 656420626974732069-
+    26 00000045 6E2062617365203136-
+    26 0000004E 20697320257800     
+    27                                  
+    28                                  ; our code starts here
+    29                                  segment code use32 class=code
+    30                                      start:
+    31                                          
+    32 00000000 68[0C000000]                    push dword message1
+    33 00000005 FF15[00000000]                  call [printf]
+    34 0000000B 83C404                          add ESP, 4*1
+    35                                                                          ; reading number a from keyboard
+    36 0000000E 68[00000000]                    push dword a
+    37 00000013 68[15000000]                    push dword format
+    38 00000018 FF15[00000000]                  call [scanf]
+    39 0000001E 83C408                          add ESP, 4*2
+    40                                          
+    41                                          
+    42 00000021 68[0F000000]                    push dword message2
+    43 00000026 FF15[00000000]                  call [printf]
+    44 0000002C 83C404                          add ESP, 4*1
+    45                                                                          ; reading number m from keyboard
+    46 0000002F 68[04000000]                    push dword m
+    47 00000034 68[15000000]                    push dword format
+    48 00000039 FF15[00000000]                  call [scanf]
+    49 0000003F 83C408                          add ESP, 4*2
+    50                                          
+    51                                          
+    52 00000042 68[12000000]                    push dword message3
+    53 00000047 FF15[00000000]                  call [printf]
+    54 0000004D 83C404                          add ESP, 4*1
+    55                                                                          ; reading number n from keyboard
+    56 00000050 68[08000000]                    push dword n
+    57 00000055 68[15000000]                    push dword format
+    58 0000005A FF15[00000000]                  call [scanf]
+    59 00000060 83C408                          add ESP, 4*2
+    60                                      
+    61                                      
+    62 00000063 A0[04000000]                    mov AL, [m]
+    63 00000068 8A1D[08000000]                  mov BL, [n]
+    64 0000006E 38D8                            cmp AL, BL
+    65 00000070 7652                            jbe Final ; if m<=n jump to Final, because in the problem statement it says that m>n
+    66 00000072 3C0F                            cmp AL, 15
+    67 00000074 774E                            ja Final ; if m>15 jump to Final, because in the problem statement it says that m<=15
+    68 00000076 80FB00                          cmp BL, 0
+    69 00000079 7249                            jb Final ; if n<0 jump to Final, because in the problem statement it says that n>=0
+    70                                               
+    71                                         
+    72 0000007B 8A0D[04000000]                  mov CL, [m] ; for the shift operations we always use CL
+    73 00000081 2A0D[08000000]                  sub CL, [n]
+    74                                          
+    75 00000087 BB00000000                      mov EBX, 0 
+    76 0000008C 66BB0080                        mov BX, 1000000000000000b
+    77 00000090 66D3FB                          sar BX, CL ; number of 1 bits = number of bits from n to m, so we use shift arithmetic right m-n positions(where the left bits are filled with the sign bit (1 here))
+    78                                          
+    79 00000093 B10F                            mov CL, 15
+    80 00000095 2A0D[04000000]                  sub CL, [m] ; we will shift to right 15-m positions so the 1 bits will be on positions m-n (the rest will be 0)
+    81 0000009B 66D3EB                          shr BX, CL
+    82                                          
+    83 0000009E B800000000                      mov EAX, 0
+    84 000000A3 66A1[00000000]                  mov AX, [a]
+    85 000000A9 6621D8                          and AX, BX ; we isolate the bits m-n of a
+    86                                          
+    87 000000AC 8A0D[08000000]                  mov CL, [n]
+    88 000000B2 66D3E8                          shr AX, CL ; we shift to right with n positions so the bits m-n will be the first bits from right to left and the others will be 0 (in order to display the correct number)
+    89                                                          
+    90                                                          
+    91 000000B5 50                              push EAX
+    92 000000B6 68[18000000]                    push dword format2  ; print the number represented by the isolated m-n bits in base 16
+    93 000000BB FF15[00000000]                  call [printf]
+    94 000000C1 83C408                          add ESP, 4*2
+    95                                          
+    96                                          Final:
+    97                                          ; exit(0)
+    98 000000C4 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    99 000000C6 FF15[00000000]                  call    [exit]       ; call exit to terminate the program
