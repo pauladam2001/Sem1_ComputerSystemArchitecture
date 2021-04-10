@@ -1,0 +1,29 @@
+     1                                  bits 32
+     2                                  segment code use32 public code
+     3                                  
+     4                                  global function
+     5                                  
+     6                                  
+     7                                  function:
+     8 00000000 8B4C240C                        mov ECX, [ESP+ 12] ;char
+     9 00000004 8B742408                        mov ESI, [ESP + 8] ;text
+    10 00000008 8B542404                        mov EDX, [ESP + 4] ;nrOfChar
+    11                                          
+    12 0000000C BF00000000                      mov EDI, 0
+    13                                          .parseTheString:
+    14 00000011 803C3E00                                    cmp byte [ESI + EDI] , 0 ; the string is parsed
+    15 00000015 7410                                        je .outOfRepeat
+    16                                                      
+    17 00000017 8A043E                                      mov AL, byte [ESI + EDI]
+    18 0000001A 3A01                                        cmp AL, [ECX]
+    19 0000001C 7506                                        jne .continuee
+    20                                                      
+    21 0000001E FE02                                        inc byte [EDX]             ;if the actual character is equal with the one read from the keyboard
+    22 00000020 C6043E58                                    mov byte [ESI + EDI], 'X'
+    23                                                      
+    24                                                      .continuee:
+    25 00000024 47                                          inc EDI
+    26 00000025 EBEA                                        jmp .parseTheString
+    27                                          
+    28                                          .outOfRepeat:
+    29 00000027 C3                          ret
