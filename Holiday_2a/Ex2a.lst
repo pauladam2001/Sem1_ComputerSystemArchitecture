@@ -1,0 +1,123 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit, fopen, fclose, fread, scanf, fprintf , printf              ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                                            
+    11                                  import fopen msvcrt.dll
+    12                                  import fclose msvcrt.dll
+    13                                  import scanf msvcrt.dll
+    14                                  import fprintf msvcrt.dll
+    15                                  import fread msvcrt.dll
+    16                                  import printf msvcrt.dll
+    17                                  
+    18                                  ;Se citeste un text din fisier si un character de la tastatura. Calculati numarul de aparitii al caracterului citit in textul dat si inlocuiti-l cu X, scriind rezultatul in alt fisier output.txt
+    19                                  
+    20                                  ; our data is declared here (the variables needed by our program)
+    21                                  segment data use32 class=data
+    22 00000000 46696C65312E747874-         file_name1 db "File1.txt", 0
+    22 00000009 00                 
+    23 0000000A 6F75747075742E7478-         file_name2 db "output.txt", 0
+    23 00000013 7400               
+    24 00000015 7200                        acces_mode1 db "r", 0
+    25 00000017 7700                        acces_mode2 db "w", 0
+    26 00000019 FFFFFFFF                    file_descriptor1 dd -1
+    27 0000001D FFFFFFFF                    file_descriptor2 dd -1
+    28                                      len equ 100
+    29 00000021 00<rept>                    text times len db 0
+    30 00000085 496E74726F64756365-         format_char db "Introduce the character: ", 0
+    30 0000008E 207468652063686172-
+    30 00000097 61637465723A2000   
+    31 0000009F 256300                      format_char_2 db "%c", 0
+    32 000000A2 54686520676976656E-         format_output db "The given character appears %u times. The new text is: %s", 0
+    32 000000AB 206368617261637465-
+    32 000000B4 722061707065617273-
+    32 000000BD 2025752074696D6573-
+    32 000000C6 2E20546865206E6577-
+    32 000000CF 20746578742069733A-
+    32 000000D8 20257300           
+    33 000000DC 00                          char db 0
+    34 000000DD 00                          nrOfChar db 0
+    35                                      
+    36                                  
+    37                                  ; our code starts here
+    38                                  segment code use32 class=code
+    39                                      start:
+    40 00000000 68[15000000]                    push dword acces_mode1
+    41 00000005 68[00000000]                    push dword file_name1
+    42 0000000A FF15[00000000]                  call [fopen]                ;open the file from where we read the text
+    43 00000010 83C408                          add ESP, 4*2
+    44 00000013 A3[19000000]                    mov [file_descriptor1], EAX
+    45                                          
+    46 00000018 83F800                          cmp EAX, 0              ;check if the files were open correctly
+    47 0000001B 0F84C8000000                    je Final
+    48                                          
+    49 00000021 68[17000000]                    push dword acces_mode2
+    50 00000026 68[0A000000]                    push dword file_name2
+    51 0000002B FF15[00000000]                  call [fopen]                ;open the file where we will write the number of appearences and the new text
+    52 00000031 83C408                          add ESP, 4*2
+    53 00000034 A3[1D000000]                    mov [file_descriptor2], EAX
+    54                                              
+    55 00000039 83F800                          cmp EAX, 0              ;check if the files were open correctly
+    56 0000003C 0F84A7000000                    je Final
+    57                                          
+    58 00000042 FF35[19000000]                  push dword [file_descriptor1]
+    59 00000048 6A64                            push dword len
+    60 0000004A 6A01                            push dword 1                    ;read the text from the file
+    61 0000004C 68[21000000]                    push dword text
+    62 00000051 FF15[00000000]                  call [fread]
+    63 00000057 83C410                          add ESP, 4*4
+    64                                          
+    65 0000005A 68[85000000]                    push dword format_char
+    66 0000005F FF15[00000000]                  call [printf]               
+    67 00000065 83C404                          add ESP, 4                  
+    68                                          
+    69 00000068 68[DC000000]                    push dword char
+    70 0000006D 68[9F000000]                    push dword format_char_2        ;read the character
+    71 00000072 FF15[00000000]                  call [scanf]                    
+    72 00000078 83C408                          add ESP, 4*2                   
+    73                                          
+    74 0000007B BF00000000                      mov EDI, 0
+    75                                          parseTheString:
+    76 00000080 80BF[21000000]00                            cmp byte [text + EDI] , 0 ; the string is parsed
+    77 00000087 741E                                        je outOfRepeat
+    78                                                      
+    79 00000089 8A87[21000000]                              mov AL, byte [text + EDI]
+    80 0000008F 3A05[DC000000]                              cmp AL, [char]
+    81 00000095 750D                                        jne continue
+    82                                                      
+    83 00000097 FE05[DD000000]                              inc byte [nrOfChar]             ;if the actual character is equal with the one read from the keyboard
+    84 0000009D C687[21000000]58                            mov byte [text + EDI], 'X'
+    85                                                      
+    86                                                      continue:
+    87 000000A4 47                                          inc EDI
+    88 000000A5 EBD9                                        jmp parseTheString
+    89                                          
+    90                                          outOfRepeat:
+    91                                          
+    92 000000A7 B800000000                      mov EAX, 0
+    93 000000AC A0[DD000000]                    mov AL, [nrOfChar]
+    94                                          
+    95 000000B1 68[21000000]                    push dword text
+    96 000000B6 50                              push EAX    ;nrOfChar
+    97 000000B7 68[A2000000]                    push dword format_output            ;print in the file the number of appearences and the new text
+    98 000000BC FF35[1D000000]                  push dword [file_descriptor2]
+    99 000000C2 FF15[00000000]                  call [fprintf]
+   100 000000C8 83C410                          add ESP, 4*4
+   101                                          
+   102 000000CB FF35[19000000]                  push dword [file_descriptor1]
+   103 000000D1 FF15[00000000]                  call [fclose]                       ;close the files
+   104 000000D7 83C404                          add ESP, 4
+   105                                          
+   106 000000DA FF35[1D000000]                  push dword [file_descriptor2]
+   107 000000E0 FF15[00000000]                  call [fclose]                       ;close the files
+   108 000000E6 83C404                          add ESP, 4
+   109                                          
+   110                                          Final:
+   111                                          ; exit(0)
+   112 000000E9 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+   113 000000EB FF15[00000000]                  call    [exit]       ; call exit to terminate the program
