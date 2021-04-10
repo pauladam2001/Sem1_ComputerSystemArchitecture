@@ -1,0 +1,121 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit, printf, scanf, gets               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  import printf msvcrt.dll
+    11                                  import scanf msvcrt.dll
+    12                                  import gets msvcrt.dll
+    13                                  
+    14                                  
+    15                                  ; Read a sentence from the keyboard. For each word, obtain a new one by taking the letters in reverse order and print each new word. 
+    16                                  
+    17                                  
+    18                                  ; our data is declared here (the variables needed by our program)
+    19                                  segment data use32 class=data
+    20 00000000 496E74726F64756365-         format_string db "Introduce the sentence: ", 0
+    20 00000009 207468652073656E74-
+    20 00000012 656E63653A2000     
+    21 00000019 257300                      format db "%s", 0
+    22 0000001C 25730A0D00                  format2 db "%s", 10 ,13, 0       ; 10, 13 means a new line
+    23 00000021 00<rept>                    given_sentence times 100 db 0    ; here we will store the sentence that we read
+    24 00000085 00<rept>                    new_word times 100 db 0          ; here we will form the mirrored word
+    25                                  
+    26                                  ; our code starts here
+    27                                  segment code use32 class=code
+    28                                  
+    29                                      find_length:
+    30                                              .FindLength:  ; with this repeat we find how long the word is (we stop when we find a space or 0 (for the last word))
+    31 00000000 80BF[21000000]20                            cmp byte [given_sentence + EDI] , 20h ; 20h = ASCII of space
+    32 00000007 740C                                        je .OutOfRepeat
+    33 00000009 80BF[21000000]00                            cmp byte [given_sentence + EDI] , 0 ; 0 for last word
+    34 00000010 7403                                        je .OutOfRepeat
+    35                                                      
+    36 00000012 47                                          inc EDI         ; if the character is not a space, then we continue
+    37 00000013 EBEB                                        jmp .FindLength
+    38                                              
+    39                                              .OutOfRepeat:
+    40                                              
+    41 00000015 C3                                  ret
+    42                                  
+    43                                      clear_word:
+    44                                              .ClearTheNewWord: ; with this loop we clear the word where we will form the mirrored word of the actual one
+    45 00000016 C683[85000000]00                                    mov byte [new_word + EBX], 0
+    46 0000001D 43                                                  inc EBX
+    47 0000001E E2F6                                loop .ClearTheNewWord
+    48                                              
+    49 00000020 C3                                  ret
+    50                                              
+    51                                      mirror:
+    52                                             .Mirror: ; with this loop we form the mirrored word
+    53 00000021 8A87[21000000]                             mov AL, [given_sentence + EDI]
+    54 00000027 8882[85000000]                             mov [new_word + EDX], AL
+    55 0000002D 42                                         inc EDX
+    56 0000002E 4F                                         dec EDI
+    57 0000002F E2F0                                loop .Mirror
+    58                                              
+    59 00000031 C3                                  ret
+    60                                  
+    61                                      parse_the_string:   
+    62 00000032 BE00000000                      mov ESI, 0
+    63 00000037 BF00000000                      mov EDI, 0
+    64                                          
+    65                                          .ParseTheString:  ; the big loop (it stops when the sentence is parsed)
+    66                                          
+    67 0000003C E8BFFFFFFF                          call find_length
+    68                                              
+    69 00000041 BB00000000                          mov EBX, 0
+    70 00000046 B964000000                          mov ECX, 100
+    71                                              
+    72 0000004B E8C6FFFFFF                          call clear_word
+    73                                              
+    74 00000050 89FB                                mov EBX, EDI
+    75 00000052 29F3                                sub EBX, ESI
+    76 00000054 89D9                                mov ECX, EBX  ; we put in ECX the length of the word without modifying ESI and EDI
+    77                                              
+    78 00000056 89FB                                mov EBX, EDI ; we need to keep EDI
+    79                                              
+    80 00000058 4F                                  dec EDI ;the character before the space
+    81 00000059 BA00000000                          mov EDX, 0 ; with edx we parse the new_word
+    82                                              
+    83 0000005E E8BEFFFFFF                          call mirror
+    84                                              
+    85 00000063 68[85000000]                        push dword new_word
+    86 00000068 68[1C000000]                        push dword format2  ; we print the word that we obtained
+    87 0000006D FF15[00000000]                      call [printf]
+    88 00000073 83C408                              add ESP, 4*2
+    89                                              
+    90 00000076 89DF                                mov EDI, EBX
+    91 00000078 80BF[21000000]00                    cmp byte [given_sentence + EDI], 0 ; we check if we have parsed the whole sentence
+    92 0000007F 7408                                je .finish
+    93                                              
+    94 00000081 89FE                                mov ESI, EDI
+    95 00000083 46                                  inc ESI ; next word, after space ; if we are not at the end of the sentence we continue searching words
+    96 00000084 83C701                              add EDI, 1
+    97 00000087 EBB3                                jmp .ParseTheString
+    98                                              
+    99                                          .finish:
+   100                                          
+   101 00000089 C20400                          ret 4
+   102                                  
+   103                                      start:
+   104 0000008C 68[00000000]                    push dword format_string
+   105 00000091 FF15[00000000]                  call [printf]               ; print the message
+   106 00000097 83C404                          add ESP, 4                  ; clear the stack
+   107                                          
+   108 0000009A 68[21000000]                    push dword given_sentence
+   109 0000009F FF15[00000000]                  call [gets]                    ; we use gets instead of scanf in order to read the sentence because scanf stops at the first space
+   110 000000A5 83C404                          add ESP, 4*1                   ;clear the stack
+   111                                          
+   112 000000A8 68[21000000]                    push dword given_sentence
+   113 000000AD E880FFFFFF                      call parse_the_string
+   114                                          
+   115                                          
+   116                                      
+   117                                          ; exit(0)
+   118 000000B2 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+   119 000000B4 FF15[00000000]                  call    [exit]       ; call exit to terminate the program

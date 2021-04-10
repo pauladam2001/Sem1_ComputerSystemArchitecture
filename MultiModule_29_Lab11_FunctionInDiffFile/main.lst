@@ -1,0 +1,161 @@
+     1                                  ; Read a sentence from the keyboard. For each word, obtain a new one by taking the letters in reverse order and print each new word. 
+     2                                  ; procedura factorial este definita in fisierul MMCfactorial.asm
+     3                                  bits  32
+     4                                  global  start
+     5                                  
+     6                                  extern  printf, exit, gets
+     7                                  import  printf msvcrt.dll
+     8                                  import  exit msvcrt.dll
+     9                                  import  gets msvcrt.dll
+    10                                  
+    11                                  ; the code from parse.asm will be inserted here
+    12                                  %include "parse.asm"
+     1                              <1> ; we need to avoid multiple inclusion of this file
+     2                              <1> %ifndef _PARSE_ASM_ ; if _PARSE_ASM_ is not defined
+     3                              <1> %define _PARSE_ASM_ ; then we define it
+     4                              <1> 
+     5                              <1> %include "length.asm"
+     1                              <2> %ifndef _LENGTH_ASM_
+     2                              <2> %define _LENGTH_ASM_
+     3                              <2> 
+     4                              <2> 
+     5                              <2> MMlength:
+     6                              <2>         .FindLength:  ; with this repeat we find how long the word is (we stop when we find a space or 0 (for the last word))
+     7 00000000 803C3820            <2>             cmp byte [EAX + EDI] , 20h ; 20h = ASCII of space
+     8 00000004 7409                <2>             je .OutOfRepeat
+     9 00000006 803C3800            <2>             cmp byte [EAX + EDI] , 0 ; 0 for last word
+    10 0000000A 7403                <2>             je .OutOfRepeat
+    11                              <2> 
+    12 0000000C 47                  <2>             inc EDI         ; if the character is not a space or 0, then we continue
+    13 0000000D EBF1                <2>         jmp .FindLength
+    14                              <2> 
+    15                              <2>         .OutOfRepeat:
+    16 0000000F C3                  <2>     ret 
+    17                              <2>     
+    18                              <2> %endif
+     6                              <1> %include "clear.asm"
+     1                              <2> %ifndef _CLEAR_ASM_
+     2                              <2> %define _CLEAR_ASM_
+     3                              <2> 
+     4                              <2> 
+     5                              <2> MMclear:
+     6                              <2>         .ClearTheNewWord: ; with this loop we clear the word where we will form the mirrored word of the actual one
+     7 00000010 C6041300            <2>                         mov byte [EBX + EDX], 0
+     8 00000014 42                  <2>                         inc EDX
+     9 00000015 E2F9                <2>         loop .ClearTheNewWord
+    10                              <2> 
+    11 00000017 C3                  <2>     ret
+    12                              <2>     
+    13                              <2> %endif
+     7                              <1> %include "reverse.asm"
+     1                              <2> %ifndef _REVERSE_ASM_
+     2                              <2> %define _REVERSE_ASM_
+     3                              <2> 
+     4                              <2> 
+     5                              <2> MMreverse:
+     6                              <2>         .Mirror: ; with this loop we form the mirrored word
+     7 00000018 51                  <2>             push ECX
+     8 00000019 8A0C38              <2>             mov CL, [EAX + EDI] ; CL = the last character of the word
+     9 0000001C 880C13              <2>             mov [EBX + EDX], CL ; in EBX (new_word), on position EDX (from left to right) we put CL
+    10 0000001F 59                  <2>             pop ECX ; we pop back ECX because we need it for the loop
+    11 00000020 42                  <2>             inc EDX
+    12 00000021 4F                  <2>             dec EDI
+    13 00000022 E2F4                <2>         loop .Mirror
+    14 00000024 C3                  <2>     ret
+    15                              <2>     
+    16                              <2> %endif
+     8                              <1> %include "print.asm"
+     1                              <2> %ifndef _PRINT_ASM_
+     2                              <2> %define _PRINT_ASM_
+     3                              <2> 
+     4                              <2> 
+     5                              <2> extern printf
+     6                              <2> import printf msvcrt.dll
+     7                              <2> 
+     8                              <2> 
+     9                              <2> MMprint:
+    10 00000025 53                  <2>         push dword EBX
+    11 00000026 68[A0000000]        <2>         push dword format2  ; we print the word that we obtained
+    12 0000002B FF15[00000000]      <2>         call [printf]
+    13 00000031 83C408              <2>         add ESP, 4*2
+    14 00000034 C3                  <2>     ret
+    15                              <2>     
+    16                              <2> %endif
+     9                              <1> 
+    10                              <1> ; procedure definition
+    11                              <1> MMmirror:
+    12 00000035 8B5C2404            <1>         mov EBX, [ESP + 4]  ; the new_word
+    13 00000039 8B442408            <1>         mov EAX, [ESP + 8]  ; the given_sentence
+    14                              <1>  
+    15                              <1>         
+    16 0000003D BE00000000          <1>         mov ESI, 0
+    17 00000042 BF00000000          <1>         mov EDI, 0
+    18                              <1>         
+    19                              <1>         .ParseTheString:  ; the big loop (it stops when the sentence is parsed)
+    20                              <1> 
+    21 00000047 E8B4FFFFFF          <1>             call MMlength ; we find the length of the word
+    22                              <1>             
+    23 0000004C BA00000000          <1>             mov EDX, 0
+    24 00000051 B964000000          <1>             mov ECX, 100
+    25                              <1>             
+    26 00000056 E8B5FFFFFF          <1>             call MMclear ; we clear new_word in order to form another reversed word
+    27                              <1>             
+    28 0000005B 89F9                <1>             mov ECX, EDI
+    29 0000005D 29F1                <1>             sub ECX, ESI  ; we put in ECX the length of the word
+    30                              <1>             
+    31 0000005F 57                  <1>             push EDI ; we need to keep EDI
+    32                              <1>             
+    33 00000060 4F                  <1>             dec EDI ;the character before the space
+    34 00000061 BA00000000          <1>             mov EDX, 0 ; with edx we parse the new_word
+    35                              <1>             
+    36 00000066 E8ADFFFFFF          <1>             call MMreverse ; we form the mirrored word
+    37                              <1>             
+    38 0000006B 60                  <1>             pushad ; we push all registers because the printf will change the values
+    39                              <1>             
+    40 0000006C E8B4FFFFFF          <1>             call MMprint ; we print the formed reversed word
+    41                              <1>             
+    42 00000071 61                  <1>             popad ; we pop all the values of registers from the stack
+    43                              <1>             
+    44 00000072 5F                  <1>             pop EDI ; we get back the value of EDI from the stack
+    45                              <1>             
+    46 00000073 803C3800            <1>             cmp byte [EAX + EDI], 0 ; we check if we have parsed the whole sentence
+    47 00000077 7408                <1>             je .finish
+    48                              <1>             
+    49 00000079 89FE                <1>             mov ESI, EDI
+    50 0000007B 46                  <1>             inc ESI ; next word, after space ; if we are not at the end of the sentence we continue searching words
+    51 0000007C 83C701              <1>             add EDI, 1
+    52 0000007F EBC6                <1>             jmp .ParseTheString
+    53                              <1>             
+    54                              <1>         .finish:
+    55                              <1>     
+    56 00000081 C20800              <1> 	ret 8 ; 4 reprezinta numarul de octeti ce trebuie eliberati de pe stiva (parametrul pasat procedurii)
+    57                              <1>     
+    58                              <1> %endif
+    13                                  
+    14                                  
+    15                                  segment  data use32 class=data
+    16 00000084 496E74726F64756365-         format_string db "Introduce the sentence: ", 0
+    16 0000008D 207468652073656E74-
+    16 00000096 656E63653A2000     
+    17 0000009D 257300                      format db "%s", 0
+    18 000000A0 25730A0D00                  format2 db "%s", 10 ,13, 0       ; 10, 13 means a new line
+    19 000000A5 00<rept>                    given_sentence times 100 db 0    ; here we will store the sentence that we read
+    20 00000109 00<rept>                    new_word times 100 db 0          ; here we will form the mirrored word
+    21                                  
+    22                                      
+    23                                  segment  code use32 class=code
+    24                                      start:
+    25 00000000 68[84000000]                    push dword format_string
+    26 00000005 FF15[00000000]                  call [printf]               ; print the message
+    27 0000000B 83C404                          add ESP, 4                  ; clear the stack
+    28                                          
+    29 0000000E 68[A5000000]                    push dword given_sentence
+    30 00000013 FF15[00000000]                  call [gets]                    ; we use gets instead of scanf in order to read the sentence because scanf stops at the first space
+    31 00000019 83C404                          add ESP, 4*1                   ;clear the stack
+    32                                      
+    33 0000001C 68[A5000000]                    push dword given_sentence
+    34 00000021 68[09010000]                    push dword new_word
+    35 00000026 E8(35000000)                    call MMmirror         ; call the function with the parameters given_sentence and new_word
+    36                                          
+    37 0000002B 6A00                            push 0
+    38 0000002D FF15[00000000]                  call [exit]
