@@ -1,0 +1,39 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  extern function
+     7                                  ; declare external functions needed by our program
+     8                                  extern exit               ; tell nasm that exit exists even if we won't be defining it
+     9                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+    10                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    11                                                            
+    12                                  ; A string of doublewords is given. Write a program in assembly language which builds 2 strings as follows:
+    13                                  ; i) A string of bytes sir2 taking from each doubleword the higher byte of the lower word and if this one is strictly negative it will be put in the destination string. In the end, the elements of sir2 will be print
+    14                                  ;           Ex.: sir1 dd 1245AB36h, 23456789h, 1212F1EEh
+    15                                  ;           The string of the higher bytes of the lower words will be ABh, 67h, F1h. From these, only ABh and F1h are strictly negative, so sir2 db Abh, F1h and on the screen 1010 1011 1111 0001 will be printed.
+    16                                  ; ii) The string sir3 representing the string there will be printed on the screen when printing the elements of sir2 in base is required.
+    17                                  ;           Ex.: for the above sir2 we will have sir3 db "-85", "-15"
+    18                                  
+    19                                  ; our data is declared here (the variables needed by our program)
+    20                                  segment data use32 class=data
+    21 00000000 36AB451289674523EE-         sir1 dd 1245AB36h, 23456789h, 1212F1EEh
+    21 00000009 F11212             
+    22                                      len equ ($ - sir1)/4
+    23 0000000C 00<rept>                    sir2 times len db 0
+    24 0000000F 00<rept>                    sir3 times len db 0
+    25                                  
+    26                                  ; our code starts here
+    27                                  segment code use32 class=code
+    28                                      start:
+    29 00000000 6A03                            push dword len
+    30 00000002 68[00000000]                    push dword sir1
+    31 00000007 68[0C000000]                    push dword sir2
+    32 0000000C 68[0F000000]                    push dword sir3
+    33 00000011 E8(00000000)                    call function
+    34 00000016 83C410                          add ESP, 4*4
+    35                                      
+    36                                          ; exit(0)
+    37 00000019 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    38 0000001B FF15[00000000]                  call    [exit]       ; call exit to terminate the program

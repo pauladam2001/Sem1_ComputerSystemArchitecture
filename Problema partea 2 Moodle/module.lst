@@ -1,0 +1,120 @@
+     1                                  bits 32
+     2                                  
+     3                                  global function
+     4                                  
+     5                                  extern printf
+     6                                  import printf msvcrt.dll
+     7                                  
+     8                                  segment data use32 class=data
+     9 00000000 00<rept>                    nr_in_base2 times 100 db 0
+    10 00000064 257500                      format db "%u", 0
+    11 00000067 256300                      char_space db "%c", 0
+    12 0000006A 00<rept>                    string times 100 db 0
+    13                                  
+    14                                  segment code use32 class=code
+    15                                  
+    16                                  function:
+    17 00000000 8B74240C                        mov ESI, [ESP + 12]
+    18 00000004 8B7C2408                        mov EDI, [ESP + 8]
+    19 00000008 8B4C2410                        mov ECX, [ESP + 16]
+    20                                          
+    21 0000000C FC                              cld
+    22                                          parse_sir1:
+    23 0000000D AC                                      lodsb
+    24 0000000E AC                                      lodsb
+    25 0000000F 3C00                                    cmp AL, 0
+    26 00000011 7C02                                    jl store_byte
+    27 00000013 EB01                                    jmp continue
+    28                                                  
+    29                                                  store_byte:
+    30 00000015 AA                                              stosb
+    31                                                  
+    32                                                  continue:
+    33 00000016 66AD                                    lodsw
+    34                                                  
+    35 00000018 E2F3                                    loop parse_sir1
+    36                                                  
+    37 0000001A 8B7C2408                        mov EDI, [ESP + 8]
+    38 0000001E BA00000000                      mov EDX, 0
+    39                                          
+    40                                          print_base2:
+    41 00000023 B800000000                              mov EAX, 0
+    42 00000028 AC                                      lodsb
+    43 00000029 83F800                                  cmp EAX, 0
+    44 0000002C 0F8484000000                            je final
+    45                                                  
+    46 00000032 BB02000000                              mov EBX, 2
+    47 00000037 B900000000                              mov ECX, 0
+    48                                                  
+    49                                                  form_base2:
+    50 0000003C F7F3                                            div EBX
+    51 0000003E 8991[00000000]                                  mov [nr_in_base2 + ECX], EDX
+    52 00000044 83C101                                          add ECX, 1
+    53 00000047 BA00000000                                      mov EDX, 0
+    54                                                          
+    55 0000004C 83F800                                          cmp EAX, 0
+    56 0000004F 75EB                                            jne form_base2
+    57 00000051 83E901                                  sub ECX, 1
+    58                                                  print_nr:
+    59 00000054 51                                              push ECX
+    60 00000055 B800000000                                      mov EAX, 0
+    61 0000005A 8A81[00000000]                                  mov AL, [nr_in_base2 + ECX]
+    62 00000060 50                                              push EAX
+    63 00000061 68[64000000]                                    push dword format
+    64 00000066 FF15[00000000]                                  call [printf]
+    65 0000006C 83C408                                          add ESP, 4*2
+    66 0000006F 59                                              pop ECX
+    67 00000070 49                                              dec ECX
+    68 00000071 83F900                                          cmp ECX, 0
+    69 00000074 7DDE                                            jge print_nr
+    70                                                  
+    71 00000076 6A20                                    push dword " "
+    72 00000078 68[67000000]                            push dword char_space
+    73 0000007D FF15[00000000]                          call [printf]
+    74 00000083 83C408                                  add ESP, 4*2
+    75                                                  
+    76 00000086 BA00000000                              mov EDX, 0
+    77 0000008B B919000000                              mov ECX, 25
+    78                                                  clearWord:
+    79 00000090 C782[00000000]0000-                             mov dword [nr_in_base2 + EDX], 0
+    79 00000098 0000               
+    80 0000009A 83C204                                          add EDX, 4
+    81 0000009D E2F1                                            loop clearWord
+    82                                                  
+    83 0000009F BA00000000                              mov EDX, 0
+    84 000000A4 E97AFFFFFF                              jmp print_base2
+    85                                              
+    86 000000A9 8B742408                        mov ESI, [ESP + 8]
+    87 000000AD 8B7C2404                        mov EDI, [ESP + 4]
+    88                                          
+    89 000000B1 B900000000                      mov ECX, 0
+    90                                          
+    91                                          final:
+    92                                          
+    93                                          parse_sir2:
+    94 000000B6 B800000000                              mov EAX, 0
+    95 000000BB AC                                      lodsb
+    96 000000BC 83F800                                  cmp EAX, 0
+    97 000000BF 7429                                    je done
+    98 000000C1 BA00000000                              mov EDX, 0
+    99 000000C6 C681[6A000000]2D                        mov byte [string + ECX], '-'
+   100 000000CD 41                                      inc ECX
+   101                                                  
+   102 000000CE BB0A000000                              mov EBX, 10
+   103                                                  decompose:
+   104 000000D3 F7F3                                            div EBX
+   105                                                          
+   106 000000D5 83C330                                          add EBX, '0'
+   107 000000D8 8999[6A000000]                                  mov [string + ECX], EBX
+   108                                                          
+   109 000000DE BA00000000                                      mov EDX, 0
+   110 000000E3 83F800                                          cmp EAX, 0
+   111 000000E6 75EB                                            jne decompose
+   112 000000E8 EBCC                                    jmp parse_sir2
+   113                                         
+   114                                          done:
+   115 000000EA FF742404                            push dword [ESP + 4]
+   116 000000EE FF15[00000000]                      call [printf]
+   117 000000F4 83C404                              add ESP, 4
+   118                                          
+   119 000000F7 C3                          ret

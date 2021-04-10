@@ -1,0 +1,43 @@
+     1                                  bits 32
+     2                                  
+     3                                  global changeChar
+     4                                  
+     5                                  segment data use32 class=data
+     6 00000000 00000000                    c dd 0
+     7 00000004 00000000                    op dd 0
+     8 00000008 00000000                    n dd 0
+     9                                  
+    10                                  segment code use32 class=code
+    11                                  
+    12                                  changeChar:
+    13                                              
+    14 00000000 8B442404                        mov EAX, [ESP + 4] ; index
+    15 00000004 A3[08000000]                    mov [n], EAX
+    16 00000009 8B442408                        mov EAX, [ESP + 8] ; op
+    17 0000000D A3[04000000]                    mov [op], EAX
+    18 00000012 8B44240C                        mov EAX, [ESP + 12] ; c
+    19 00000016 A3[00000000]                    mov [c], EAX
+    20                                          
+    21 0000001B 833D[04000000]2D                cmp dword [op], '-'
+    22 00000022 740D                            je is_minus
+    23 00000024 EB2D                            jmp done
+    24                                          
+    25 00000026 833D[04000000]26                cmp dword [op], '&'
+    26 0000002D 7414                            je is_and
+    27 0000002F EB22                            jmp done
+    28                                          
+    29                                          is_minus:
+    30 00000031 A1[08000000]                            mov EAX, [n]
+    31 00000036 2905[00000000]                          sub dword [c], EAX
+    32 0000003C A1[00000000]                            mov EAX, [c]
+    33 00000041 EB10                                    jmp done
+    34                                          
+    35                                          is_and:
+    36 00000043 A1[00000000]                            mov EAX, [c]
+    37 00000048 8B1D[08000000]                          mov EBX, [n]
+    38 0000004E 21D8                                    and EAX, EBX
+    39 00000050 83C061                                  add EAX, 'a'
+    40                                  
+    41                                          done:
+    42                                  
+    43 00000053 C3                          ret

@@ -1,0 +1,36 @@
+     1                                  bits 32
+     2                                  
+     3                                  global B
+     4                                  
+     5                                  segment  data use32 public code
+     6                                  
+     7                                  B:
+     8                                  
+     9                                  ;ESP - return address
+    10                                  ;ESP + 4 - [counter]
+    11                                  ;ESP + 8 - numbers
+    12                                  ;ESP + 12 - sorted_numbers
+    13                                  
+    14 00000000 66BA0100                    mov DX, 1
+    15                                      while_:
+    16 00000004 6683FA00                        cmp DX, 0
+    17 00000008 742A                            je the_end
+    18 0000000A 8B742408                        mov ESI, [ESP + 8]
+    19 0000000E 66BA0000                        mov DX, 0
+    20 00000012 8B4C2404                        mov ECX, [ESP + 4]
+    21 00000016 83E901                          sub ECX, 1
+    22 00000019 FC                              cld
+    23                                          repeat_:
+    24 0000001A 8B06                                mov EAX, dword[ESI]
+    25 0000001C 3B4604                              cmp EAX, dword[ESI + 4]
+    26 0000001F 7E0C                                jle next
+    27 00000021 8B5E04                              mov EBX, dword[ESI + 4]
+    28 00000024 891E                                mov dword[ESI], EBX
+    29 00000026 894604                              mov dword[ESI + 4], EAX
+    30 00000029 66BA0100                            mov DX, 1
+    31                                              next:
+    32 0000002D 83C604                              add ESI, 4
+    33 00000030 E2E8                                loop repeat_
+    34 00000032 EBD0                                jmp while_
+    35                                      the_end:
+    36 00000034 C3                              ret

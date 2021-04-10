@@ -1,0 +1,88 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit, fopen, fread, fclose, fscanf, fprintf               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  
+    11                                  import fopen msvcrt.dll
+    12                                  import fread msvcrt.dll
+    13                                  import fclose msvcrt.dll
+    14                                  import fscanf msvcrt.dll
+    15                                  import fprintf msvcrt.dll
+    16                                                            
+    17                                  ; our data is declared here (the variables needed by our program)
+    18                                  
+    19                                  ; A text file is given. The text file contains numbers (in base 10) separated by spaces. Read the content of the file, determine the maximum number (from the numbers that have been read) and write the result at the 
+    20                                  
+    21                                  segment data use32 class=data
+    22                                      
+    23 00000000 46696C652E74787400          file_name db "File.txt", 0
+    24 00000009 612B00                      access_mode db "a+", 0              ; we open the file for both reading and writing (appending)
+    25 0000000C FFFFFFFF                    file_descriptor dd -1
+    26 00000010 00000000                    numberToRead dd 0
+    27 00000014 256400                      number_type db "%d", 0    ; signed decimal numbers
+    28 00000017 256300                      char_space db "%c", 0
+    29 0000001A 00000000                    maximum_number dd 0
+    30 0000001E 20000000                    space dd " "
+    31                                  
+    32                                  ; our code starts here
+    33                                  segment code use32 class=code
+    34                                      start:
+    35                                          
+    36 00000000 68[09000000]                    push dword access_mode  ; call fopen() ; EAX = fopen(file_name, access_mode)
+    37 00000005 68[00000000]                    push dword file_name
+    38 0000000A FF15[00000000]                  call [fopen]
+    39 00000010 83C408                          add ESP, 4*2 ; clean-up the stack
+    40                                          
+    41 00000013 A3[0C000000]                    mov [file_descriptor], EAX ; store the file descriptor returned by fopen
+    42                                          
+    43 00000018 83F800                          cmp EAX, 0 ; check if fopen() has successfully created the file (EAX!=0)
+    44 0000001B 7473                            je Final
+    45                                          
+    46                                          readNumbers:
+    47 0000001D 68[10000000]                            push dword numberToRead  ; read the text from file using fscanf() ; EAX = fscanf(file_descriptor, number_type, number)
+    48 00000022 68[14000000]                            push dword number_type
+    49 00000027 FF35[0C000000]                          push dword [file_descriptor]
+    50 0000002D FF15[00000000]                          call [fscanf]
+    51 00000033 83C410                                  add ESP, 4*4 ; clean-up the stack
+    52                                                  
+    53 00000036 8B1D[10000000]                          mov EBX, [numberToRead] ; so we can compare it with the actual maximum
+    54 0000003C 3B1D[1A000000]                          cmp EBX, [maximum_number]
+    55 00000042 7702                                    ja change_max ; if the read number is bigger than maximum we change the maximum
+    56 00000044 EB06                                    jmp continue
+    57                                                  
+    58                                                  change_max:
+    59 00000046 891D[1A000000]                                     mov [maximum_number], EBX
+    60                                                             
+    61                                                  continue:
+    62                                                  
+    63 0000004C 83F8FF                                  cmp EAX, -1 ; check if we can still call fscanf() (there still are elements in the file) ; if EAX = -1 it means that all the elements were read
+    64 0000004F 75CC                                    jne readNumbers
+    65                                          
+    66                                          
+    67 00000051 6A20                            push dword " "
+    68 00000053 68[17000000]                    push dword char_space
+    69 00000058 FF35[0C000000]                  push dword [file_descriptor]
+    70 0000005E FF15[00000000]                  call [fprintf]
+    71 00000064 83C40C                          add ESP, 4*3
+    72                                          
+    73 00000067 FF35[1A000000]                  push dword [maximum_number] ; append the biggest number to  file using fprintf() ; fprintf(maximum_number, number_type, file_descriptor)
+    74 0000006D 68[14000000]                    push dword number_type
+    75 00000072 FF35[0C000000]                  push dword [file_descriptor]
+    76 00000078 FF15[00000000]                  call [fprintf]
+    77 0000007E 83C40C                          add ESP, 4*3 ; clean-up the stack
+    78                                          
+    79                                          
+    80 00000081 FF35[0C000000]                  push dword [file_descriptor] ; call fclose() to close the file ; fclose(file_descriptor)
+    81 00000087 FF15[00000000]                  call [fclose]
+    82 0000008D 83C404                          add ESP, 4*1 ; clean-up the stack
+    83                                          
+    84                                          
+    85                                          Final:
+    86                                          ; exit(0)
+    87 00000090 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    88 00000092 FF15[00000000]                  call    [exit]       ; call exit to terminate the program
