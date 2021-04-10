@@ -1,0 +1,86 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                                            
+    11                                  ;Given the doublewords A and B, obtain the quadword C as follows:
+    12                                  ;the bits 0-7 of C are the same as the bits 21-28 of A
+    13                                  ;the bits 8-15 of C are the same as the bits 23-30 of B complemented
+    14                                  ;the bits 16-21 of C have the value 101010
+    15                                  ;the bits 22-31 of C have the value 0
+    16                                  ;the bits 32-42 of C are the same as the bits 21-31 of B
+    17                                  ;the bits 43-55 of C are the same as the bits 1-13 of A
+    18                                  ;the bits 56-63 of C are the same as the bits 24-31 of the result A XOR 0ABh
+    19                                  
+    20                                  ; our data is declared here (the variables needed by our program)
+    21                                  segment data use32 class=data
+    22 00000000 9BC958D3                    A dd 11010011010110001100100110011011b
+    23 00000004 B691B548                    B dd 01001000101101011001000110110110b
+    24 00000008 <res 00000008>              C resq 1
+    25                                  
+    26                                  ; our code starts here
+    27                                  segment code use32 class=code   ; the result will be stored in EDX:EBX
+    28                                      start:
+    29                                          ;handle EBX
+    30                                          
+    31 00000000 BB00000000                      mov EBX, 0 ; we compute the result in EDX:EBX
+    32                                          
+    33 00000005 A1[00000000]                    mov EAX, [A]
+    34 0000000A 250000E01F                      and EAX, 00011111111000000000000000000000b ; we isolate bits 21-28 of A
+    35                                          
+    36 0000000F B115                            mov CL, 21 ; the number of 0s at the end of EAX
+    37 00000011 D3C8                            ror EAX, CL ; we rotate 21 position to right
+    38 00000013 09C3                            or EBX, EAX ; the bits 0-7 of C are the same as the bits 21-28 of A
+    39                                          
+    40 00000015 A1[04000000]                    mov EAX, [B]
+    41 0000001A F7D0                            not EAX ; B complemented
+    42                                          
+    43 0000001C 250000807F                      and EAX, 01111111100000000000000000000000b ; we isolate bits 23-30 of B complemented
+    44                                          
+    45 00000021 B110                            mov CL, 16 ; to be positioned at bits 8-15
+    46 00000023 D3C8                            ror EAX, CL ; we rotate 16 position to right
+    47 00000025 09C3                            or EBX, EAX ; the bits 8-15 of C are the same as the bits 23-30 of B complemented
+    48                                          
+    49 00000027 81CB00002A00                    or EBX, 00000000001010100000000000000000b ; the bits 16-21 of C have the value 101010
+    50                                          
+    51 0000002D 83CB00                          or EBX, 00000000000000000000000000000000b ; the bits 22-31 of C have the value 0
+    52                                          
+    53                                                 
+    54                                          ;handle EDX
+    55                                          
+    56 00000030 BA00000000                      mov EDX, 0 ; we compute the result in EDX:EBX
+    57                                          
+    58 00000035 A1[04000000]                    mov EAX, [B]
+    59 0000003A 250000E0FF                      and EAX, 11111111111000000000000000000000b ; we isoalte bits 21-31 of B
+    60                                          
+    61 0000003F B115                            mov  CL, 21 ; the number of 0s at the end of EAX
+    62 00000041 D3C8                            ror EAX, CL ; we rotate 21 position to right
+    63 00000043 09C2                            or EDX, EAX ; ;the bits 32-42 of C are the same as the bits 21-31 of B
+    64                                          
+    65 00000045 A1[00000000]                    mov EAX, [A]
+    66 0000004A 25FE3F0000                      and EAX, 00000000000000000011111111111110b ; we isolate bits 1-13 of A
+    67                                          
+    68 0000004F B10B                            mov CL, 11 ; to be positioned at bits 43-55 (bits 11-33 in EDX)
+    69 00000051 D3C0                            rol EAX, CL ; we rotate 11 position to left
+    70 00000053 09C2                            or EDX, EAX ; the bits 43-55 of C are the same as the bits 1-13 of A
+    71                                          
+    72 00000055 A1[00000000]                    mov EAX, [A]
+    73                                          ;0ABh = 00000000000000000000000010101011b
+    74                                          ;xor EAX, 00000000000000000000000010101011b ; ECX = A xor 0ABh
+    75 0000005A 35AB000000                      xor EAX, 0ABh
+    76 0000005F 25000000FF                      and EAX, 11111111000000000000000000000000b ; we isolate bits 24-31 of A xor 0ABh
+    77                                          
+    78 00000064 09C2                            or EDX, EAX ;the bits 56-63 of C are the same as the bits 24-31 of the result A XOR 0ABh
+    79                                          
+    80 00000066 891D[08000000]                  mov [C], EBX
+    81 0000006C 8915[0C000000]                  mov [C+4], EDX
+    82                                        
+    83                                          
+    84                                          ; exit(0)
+    85 00000072 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    86 00000074 FF15[00000000]                  call    [exit]       ; call exit to terminate the program

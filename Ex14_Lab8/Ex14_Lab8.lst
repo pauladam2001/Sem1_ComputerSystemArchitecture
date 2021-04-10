@@ -1,0 +1,85 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit, fopen, fclose, fprintf               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                                            
+    11                                  import fopen msvcrt.dll
+    12                                  import fclose msvcrt.dll
+    13                                  import fprintf msvcrt.dll
+    14                                  
+    15                                  ;A file name and a text (defined in the data segment) are given. The text contains lowercase letters, uppercase letters, digits and special characters. Transform all the uppercase letters from the given text in lowe
+    16                                                            
+    17                                  ; our data is declared here (the variables needed by our program)
+    18                                  segment data use32 class=data
+    19 00000000 46696C65312E747874-             file_name db "File1.txt", 0
+    19 00000009 00                 
+    20 0000000A 7700                            acces_mode db "w", 0
+    21 0000000C FFFFFFFF                        file_descriptor dd -1
+    22 00000010 614D21666143757420-             text db "aM!faCut Excercitiul asta peNtrU cA m-AM simtit prost cand am vazUt-O PE DariA cat LucreAza. 24324A3242", 0
+    22 00000019 457863657263697469-
+    22 00000022 756C20617374612070-
+    22 0000002B 654E74725520634120-
+    22 00000034 6D2D414D2073696D74-
+    22 0000003D 69742070726F737420-
+    22 00000046 63616E6420616D2076-
+    22 0000004F 617A55742D4F205045-
+    22 00000058 204461726941206361-
+    22 00000061 74204C75637265417A-
+    22 0000006A 612E20323433323441-
+    22 00000073 3332343200         
+    23                                          len equ $-text
+    24 00000078 257300                          typee db "%s", 0
+    25                                  
+    26                                  ; our code starts here
+    27                                  segment code use32 class=code
+    28                                      start:
+    29 00000000 BE[10000000]                    mov ESI, text
+    30 00000005 FC                              cld
+    31 00000006 B968000000                      mov ECX, len
+    32 0000000B E355                            jecxz Final
+    33                                          
+    34                                          my_loop:
+    35 0000000D AC                                      lodsb
+    36 0000000E 3C41                                    cmp AL, 65
+    37 00000010 7209                                    jb not_upper_letter
+    38 00000012 3C5A                                    cmp AL, 90
+    39 00000014 7705                                    ja not_upper_letter
+    40                                                  
+    41 00000016 0420                                    add AL, 'a'-'A'
+    42 00000018 8846FF                                  mov byte [ESI - 1], AL
+    43                                  
+    44                                                  not_upper_letter:
+    45                                                  
+    46 0000001B E2F0                            loop my_loop
+    47                                          
+    48 0000001D 68[0A000000]                    push dword acces_mode
+    49 00000022 68[00000000]                    push dword file_name
+    50 00000027 FF15[00000000]                  call [fopen]
+    51 0000002D 83C408                          add ESP, 4*2
+    52                                          
+    53 00000030 A3[0C000000]                    mov [file_descriptor], EAX
+    54                                          
+    55 00000035 83F800                          cmp EAX, 0
+    56 00000038 7428                            je Final
+    57                                          
+    58 0000003A 68[10000000]                    push dword text
+    59 0000003F 68[78000000]                    push dword typee
+    60 00000044 FF35[0C000000]                  push dword [file_descriptor]
+    61 0000004A FF15[00000000]                  call [fprintf]
+    62 00000050 83C40C                          add ESP, 4*3
+    63                                          
+    64 00000053 FF35[0C000000]                  push dword [file_descriptor]
+    65 00000059 FF15[00000000]                  call [fclose]
+    66 0000005F 83C404                          add ESP, 4
+    67                                          
+    68                                          
+    69                                          Final:
+    70                                          
+    71                                          ; exit(0)
+    72 00000062 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    73 00000064 FF15[00000000]                  call    [exit]       ; call exit to terminate the program

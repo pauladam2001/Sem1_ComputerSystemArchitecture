@@ -1,0 +1,109 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; Se da in segmentul de date numele unui fisier text (care contine litere, cifre si alte caractere). Sa se determine si sa se afiseze cifra cu valoarea cea mai mica din fisier.
+     4                                  ; The name of a text file (that contains letters, digits and other characters) is given in the data segment. Find and print the smallest digit from the file.
+     5                                  
+     6                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     7                                  global start        
+     8                                  
+     9                                  ; declare external functions needed by our program
+    10                                  extern exit, fopen, fclose, fread, printf               
+    11                                  import exit msvcrt.dll  
+    12                                  import fopen msvcrt.dll  
+    13                                  import fclose msvcrt.dll 
+    14                                  import fread msvcrt.dll 
+    15                                  import printf msvcrt.dll 
+    16                                  
+    17                                  ; our data is declared here (the variables needed by our program)
+    18                                  segment data use32 class=data
+    19 00000000 46696C65312E747874-         file_name db "File1.txt", 0
+    19 00000009 00                 
+    20 0000000A 7200                        access_mode db "r", 0
+    21 0000000C FFFFFFFF                    file_desc dd -1
+    22                                      len equ 100
+    23 00000010 00<rept>                    text times len db 0
+    24 00000074 0A                          minim db 10
+    25 00000075 257500                      format db "%u", 0
+    26 00000078 54686520736D616C6C-         printing_message db "The smallest digit from the file is: ", 0
+    26 00000081 657374206469676974-
+    26 0000008A 2066726F6D20746865-
+    26 00000093 2066696C652069733A-
+    26 0000009C 2000               
+    27 0000009E 00000000                    text_length dd 0
+    28                                      
+    29                                  
+    30                                  ; our code starts here
+    31                                  segment code use32 class=code
+    32                                      start:
+    33 00000000 68[0A000000]                    push dword access_mode
+    34 00000005 68[00000000]                    push dword file_name        ; opening the file
+    35 0000000A FF15[00000000]                  call [fopen]
+    36 00000010 83C408                          add ESP, 4*2                ; clean-up the stack
+    37                                          
+    38 00000013 A3[0C000000]                    mov [file_desc], EAX
+    39 00000018 83F800                          cmp EAX, 0                  ; check if the file was open correctly
+    40 0000001B 0F8487000000                    je Final
+    41                                          
+    42                                          read_the_file:
+    43 00000021 FF35[0C000000]                              push dword [file_desc]
+    44 00000027 6A64                                        push dword len
+    45 00000029 6A01                                        push dword 1                ; read maximum 100 characters from the file
+    46 0000002B 68[10000000]                                push dword text
+    47 00000030 FF15[00000000]                              call [fread]
+    48 00000036 83C410                                      add ESP, 4*4                ; clean-up the stack
+    49                                                      
+    50 00000039 A3[9E000000]                                mov [text_length], EAX
+    51                                                      
+    52 0000003E 83F800                                      cmp EAX, 0                  ; checking if there still are characters to read from the file
+    53 00000041 742F                                        je done
+    54                                                      
+    55 00000043 BB00000000                                  mov EBX, 0
+    56                                                      parse_string:
+    57 00000048 8A83[10000000]                                          mov AL, byte [text + EBX]       ; AL = the byte from position [text + EBX]
+    58 0000004E 43                                                      inc EBX
+    59                                                                  
+    60 0000004F 3C30                                                    cmp AL, '0'         ; compare AL with 0 
+    61 00000051 7215                                                    jb not_digit
+    62                                                                  
+    63 00000053 3C39                                                    cmp AL, '9'         ; compare AL with 9
+    64 00000055 7711                                                    ja not_digit
+    65                                                                  
+    66 00000057 2C30                                                    sub AL, 30h         ; here if it is a digit; substract the ASCII code of 0 to have the number instead of a string
+    67 00000059 3A05[74000000]                                          cmp AL, [minim]     ; compare to the minimum digit until now
+    68 0000005F 7202                                                    jb change_min
+    69 00000061 EB05                                                    jmp not_digit
+    70                                                                  
+    71                                                                  change_min:
+    72 00000063 A2[74000000]                                                    mov byte [minim], AL    ; changing the minimum
+    73                                                                                                 
+    74                                                                  not_digit:
+    75 00000068 3B1D[9E000000]                                              cmp EBX, [text_length]      ; checking if we parsed the string
+    76 0000006E 75D8                                                        jne parse_string
+    77                                                      
+    78 00000070 EBAF                                        jmp read_the_file
+    79                                                      
+    80                                                      
+    81                                          done:
+    82                                          
+    83 00000072 68[78000000]                    push dword printing_message         ; printing a message
+    84 00000077 FF15[00000000]                  call [printf]
+    85 0000007D 83C404                          add ESP, 4                          ; clean-up the stack
+    86                                          
+    87 00000080 B800000000                      mov EAX, 0
+    88 00000085 A0[74000000]                    mov AL, [minim]                     ; converting minim (which is defined as a byte) into a doubleword (in EAX) so that we can push it to the stack
+    89                                          
+    90 0000008A 50                              push EAX
+    91 0000008B 68[75000000]                    push dword format                   ; priting the smallest digit from the file
+    92 00000090 FF15[00000000]                  call [printf]
+    93 00000096 83C408                          add ESP, 4*2                        ; clean-up the stack
+    94                                          
+    95 00000099 FF35[0C000000]                  push dword [file_desc]              ; closing the file
+    96 0000009F FF15[00000000]                  call [fclose]
+    97 000000A5 83C404                          add ESP, 4                          ; clean-up the stack
+    98                                          
+    99                                          
+   100                                          Final:
+   101                                      
+   102                                          ; exit(0)
+   103 000000A8 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+   104 000000AA FF15[00000000]                  call    [exit]       ; call exit to terminate the program

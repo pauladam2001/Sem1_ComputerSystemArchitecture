@@ -1,0 +1,60 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  
+    11                                  ; our data is declared here (the variables needed by our program)
+    12                                  segment data use32 class=data ; A byte string S is given. Obtain in the string D the set of the elements of S.
+    13                                                                ; S: 1, 4, 2, 4, 8, 2, 1, 1  ;  D: 1, 4, 2, 8
+    14                                  
+    15 00000000 0104020408020101                S db 1, 4, 2, 4, 8, 2, 1, 1
+    16                                          l equ $-S ; compute the length of the string in l
+    17 00000008 00<rept>                        D times l db 0 ; reserve l bytes for the destination string and initialize it
+    18                                  
+    19                                  ; our code starts here
+    20                                  segment code use32 class=code
+    21                                      start:
+    22                                          
+    23 00000000 B908000000                      mov ECX, l ; we put the length l in ECX in order to make the loop for S
+    24 00000005 BE00000000                      mov ESI, 0 ; the index for MyS_Loop
+    25 0000000A E329                            jecxz Final ; Jump to Final if ECX register is 0
+    26                                          
+    27                                          MyS_Loop:                
+    28 0000000C 8A86[00000000]                          mov AL, [S + ESI]           
+    29                                                  
+    30 00000012 89CA                                    mov EDX, ECX ; to know where we are in MyS_Loop after we finish with MyD_Loop
+    31                                                  
+    32 00000014 89F1                                    mov ECX, ESI ; the actual length of D
+    33 00000016 BB00000000                              mov EBX, 0 ; the index for MyD_Loop
+    34 0000001B E30B                                    jecxz First_Element ; Jump to First_Element if ECX register is 0
+    35                                                  
+    36                                                  MyD_Loop:
+    37 0000001D 3A83[08000000]                                  cmp AL, byte[D + EBX] ; verify if the element already exists in D
+    38 00000023 740B                                            je Already_In_D
+    39                                                          
+    40 00000025 43                                              inc EBX
+    41                                                          
+    42 00000026 E2F5                                    loop MyD_Loop
+    43                                                  
+    44                                                  First_Element: ; first element will always be appended to D
+    45                                                  
+    46 00000028 89D1                                    mov ECX, EDX ; to know where we are in MyS_Loop after we finished with MyD_Loop
+    47 0000002A 8886[08000000]                          mov [D + ESI], AL ; the current position of D = AL //??? we don't need the current position, but the first free position, how???
+    48                                                  
+    49                                                  Already_In_D: ; if the element is already in D we don't append it to D
+    50 00000030 89D1                                    mov ECX, EDX ; to know where we are in MyS_Loop after we finished with MyD_Loop 
+    51                                  
+    52 00000032 46                                      inc ESI
+    53                                                  
+    54 00000033 E2D7                            loop MyS_Loop
+    55                                          
+    56                                          Final:
+    57                                      
+    58                                          ; exit(0)
+    59 00000035 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    60 00000037 FF15[00000000]                  call    [exit]       ; call exit to terminate the program

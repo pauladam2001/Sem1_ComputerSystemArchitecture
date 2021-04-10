@@ -1,0 +1,42 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  
+    11                                  ; our data is declared here (the variables needed by our program)
+    12                                  segment data use32 class=data ; sirul 1,2,3,4 in 1,1,2,2,3,3,4,4
+    13 00000000 01020304                    S db 1,2,3,4
+    14                                      l equ $-S
+    15 00000004 00<rept>                    D times l*2 db 0
+    16                                      
+    17                                  
+    18                                  ; our code starts here
+    19                                  segment code use32 class=code
+    20                                      start:
+    21 00000000 B904000000                          mov ECX, l
+    22 00000005 E321                                jecxz Final
+    23 00000007 BE00000000                          mov ESI, 0
+    24 0000000C BB00000000                          mov EBX, 0
+    25                                              
+    26                                              my_Loop:
+    27 00000011 8A86[00000000]                              mov AL, [S+ESI]
+    28                                                      
+    29 00000017 8883[04000000]                              mov [D+EBX], AL
+    30 0000001D 43                                          inc EBX
+    31 0000001E 8883[04000000]                              mov [D+EBX], AL
+    32 00000024 43                                          inc EBX
+    33                                                      
+    34 00000025 46                                          inc ESI
+    35                                                      
+    36 00000026 E2E9                                loop my_Loop
+    37                                              
+    38                                              Final:
+    39                                      
+    40                                          ; exit(0)
+    41 00000028 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    42 0000002A FF15[00000000]                  call    [exit]       ; call exit to terminate the program
