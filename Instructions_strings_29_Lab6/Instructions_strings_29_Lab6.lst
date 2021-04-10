@@ -1,0 +1,134 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                                            
+    11                                                            
+    12                                  ;Two strings of bytes A and B are given. Parse the shortest string of those two and build a third string C as follows:
+    13                                  ;up to the lenght of the shortest string C contains the largest element of the same rank from the two strings
+    14                                  ;then, up to the length of the longest string C will be filled with 1 and 0, alternatively.
+    15                                  
+    16                                  
+    17                                  ; our data is declared here (the variables needed by our program)
+    18                                  segment data use32 class=data
+    19 00000000 19E6080F                    A db 25, 230, 8, 15
+    20                                      lengthA equ $-A ; compute the length of the string A in lengthA
+    21 00000004 DC2EA3061D82                B db 220, 46, 163, 6, 29, 130
+    22                                      lengthB equ $-B ; compute the length of the string B in lengthB
+    23 0000000A 00<rept>                    C times lengthA+lengthB db 0 ; reserve lengthA+lengthB bytes for the destination string and initialize it
+    24                                  
+    25                                  ; our code starts here
+    26                                  segment code use32 class=code
+    27                                      start:
+    28                                          
+    29 00000000 B804000000                      mov EAX, lengthA ; we put the length of A in EAX
+    30 00000005 BB06000000                      mov EBX, lengthB ; we put the length of B in EBX
+    31                                          
+    32 0000000A 39D8                            cmp EAX, EBX ; we compare the lengths to establish which string is shorter
+    33 0000000C 7202                            jb short_string_A ; if A is shorter 
+    34 0000000E 733F                            jae short_string_B ; if B is shorter
+    35                                          
+    36                                          short_string_A: ; if A is the shorter string
+    37                                          
+    38 00000010 BE[00000000]                    mov ESI, A ; in DS:ESI we will store the FAR address of the string "A"
+    39 00000015 BF[0A000000]                    mov EDI, C ; in ES:EDI we will store the FAR address of the string "C"
+    40 0000001A FC                              cld ; parse the string from left to right(DF=0)
+    41 0000001B B904000000                      mov ECX, lengthA ; we will parse the elements of the string in a loop with lengthA iterations
+    42 00000020 BB00000000                      mov EBX, 0 ; so we can parse string B also
+    43                                          
+    44                                          loop_A_short:
+    45 00000025 AC                                      lodsb ; the byte from the address DS:ESI (A) is loaded in AL
+    46 00000026 8A93[04000000]                          mov DL, [B+EBX] ; in DL we have the byte from the current position of B
+    47 0000002C 38D0                                    cmp AL, DL ; we compare AL with DL to establish which element is larger
+    48 0000002E 7705                                    ja introduce_elem_A ; if AL is larger
+    49                                                  
+    50                                                  ; here if AL<the current element in B ; we need to introduce DL in C, so we move DL in AL then call STOSB
+    51 00000030 88D0                                    mov AL, DL
+    52 00000032 AA                                      stosb ; store AL into the byte from the address ES:EDI (in C)
+    53 00000033 EB01                                    jmp next_element_loop_A_short ; used to jump over introduce_elem_A
+    54                                                  
+    55                                                  introduce_elem_A:
+    56 00000035 AA                                             stosb ; store AL into the byte from the address ES:EDI (current position of C)
+    57                                                  
+    58                                                  next_element_loop_A_short:
+    59                                                  
+    60 00000036 43                                      inc EBX ; increment the current position of B
+    61                                                  
+    62 00000037 E2EC                            loop loop_A_short
+    63                                          
+    64 00000039 B906000000                      mov ECX, lengthB ; C has lengthB positions unfilled (because lengthB>lengthA in the actual case)
+    65 0000003E B001                            mov AL, 1 ; the unfilled positions are filled with 1 and 0, alternatively
+    66                                          loop_B:
+    67 00000040 AA                                      stosb ; store AL into the byte from the address ES:EDI (in C)
+    68 00000041 3C01                                    cmp AL, 1 ; check if AL=1 or AL=0
+    69 00000043 7504                                    jne AL_is_0_B ; if AL=0 
+    70                                                  
+    71                                                  ; here if AL=1
+    72 00000045 B000                                    mov AL, 0
+    73 00000047 EB02                                    jmp next_iteration_loop_B ; used to jump over AL_is_0
+    74                                                  
+    75                                                  AL_is_0_B:
+    76 00000049 B001                                        mov AL, 1
+    77                                                  
+    78                                                  next_iteration_loop_B:
+    79                                            
+    80 0000004B E2F3                            loop loop_B
+    81                                          
+    82 0000004D EB3D                            jmp Final
+    83                                          
+    84                                          short_string_B: ; if B is the shorter string, same instructions as in short_string_A, but B=A and A=B
+    85                                          
+    86 0000004F BE[04000000]                    mov ESI, B ; in DS:ESI we will store the FAR address of the string "B"
+    87 00000054 BF[0A000000]                    mov EDI, C ; in ES:EDI we will store the FAR address of the string "C"
+    88 00000059 FC                              cld ; parse the string from left to right(DF=0)
+    89 0000005A B906000000                      mov ECX, lengthB ; we will parse the elements of the string in a loop with lengthB iterations
+    90 0000005F BB00000000                      mov EBX, 0 ; so we can parse string A also
+    91                                          
+    92                                          loop_B_short:
+    93 00000064 AC                                      lodsb ; the byte from the address DS:ESI (B) is loaded in AL
+    94 00000065 8A93[00000000]                          mov DL, [A+EBX] ; in DL we have the byte from the current position of A
+    95 0000006B 38D0                                    cmp AL, DL ; we compare AL with DL to establish which element is larger
+    96 0000006D 7705                                    ja introduce_elem_B ; if AL is larger
+    97                                                  
+    98                                                  ; here if AL<the current element in B ; we need to introduce DL in C, so we move DL in AL then call STOSB
+    99 0000006F 88D0                                    mov AL, DL
+   100 00000071 AA                                      stosb ; store AL into the byte from the address ES:EDI (in C)
+   101 00000072 EB01                                    jmp next_element_loop_B_short ; used to jump over introduce_elem_B
+   102                                                  
+   103                                                  introduce_elem_B:
+   104 00000074 AA                                             stosb ; store AL into the byte from the address ES:EDI (current position of C)
+   105                                                  
+   106                                                  next_element_loop_B_short:
+   107                                                  
+   108 00000075 43                                      inc EBX ; increment the current position of A
+   109                                                  
+   110 00000076 E2EC                            loop loop_B_short
+   111                                          
+   112 00000078 B904000000                      mov ECX, lengthA ; C has lengthA positions unfilled (because lengthA>lengthB in the actual case)
+   113 0000007D B001                            mov AL, 1 ; the unfilled positions are filled with 1 and 0, alternatively
+   114                                          loop_A:
+   115 0000007F AA                                      stosb ; store AL into the byte from the address ES:EDI (in C)
+   116 00000080 3C01                                    cmp AL, 1 ; check if AL=1 or AL=0
+   117 00000082 7504                                    jne AL_is_0_A ; if AL=0 
+   118                                                  
+   119                                                  ; here if AL=1
+   120 00000084 B000                                    mov AL, 0
+   121 00000086 EB02                                    jmp next_iteration_loop_A ; used to jump over AL_is_0
+   122                                                  
+   123                                                  AL_is_0_A:
+   124 00000088 B001                                        mov AL, 1
+   125                                                  
+   126                                                  next_iteration_loop_A:
+   127                                            
+   128 0000008A E2F3                            loop loop_A        
+   129                                      
+   130                                          Final:
+   131                                          
+   132                                          ; exit(0)
+   133 0000008C 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+   134 0000008E FF15[00000000]                  call    [exit]       ; call exit to terminate the program
