@@ -1,0 +1,89 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit, fopen, fclose, fread, scanf, printf              ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                                            
+    11                                  import fopen msvcrt.dll
+    12                                  import fclose msvcrt.dll
+    13                                  import scanf msvcrt.dll
+    14                                  import fread msvcrt.dll
+    15                                  import printf msvcrt.dll
+    16                                  
+    17                                  ;Se citeste un text din fisier. Calculati numarul de cuvinte din fisier.
+    18                                  
+    19                                  ; our data is declared here (the variables needed by our program)
+    20                                  segment data use32 class=data
+    21 00000000 46696C65312E747874-         file_name1 db "File1.txt", 0
+    21 00000009 00                 
+    22 0000000A 7200                        acces_mode1 db "r", 0
+    23 0000000C FFFFFFFF                    file_descriptor1 dd -1
+    24                                      len equ 100
+    25 00000010 00<rept>                    text times len db 0
+    26 00000074 00                          char db 0
+    27 00000075 00                          nrOfWords db 0
+    28 00000076 257500                      format db "%u", 0
+    29                                      
+    30                                  
+    31                                  ; our code starts here
+    32                                  segment code use32 class=code
+    33                                      start:
+    34 00000000 68[0A000000]                    push dword acces_mode1
+    35 00000005 68[00000000]                    push dword file_name1
+    36 0000000A FF15[00000000]                  call [fopen]                    ;open the file from where we read the text
+    37 00000010 83C408                          add ESP, 4*2
+    38 00000013 A3[0C000000]                    mov [file_descriptor1], EAX
+    39                                          
+    40 00000018 83F800                          cmp EAX, 0              ;check if the file was open correctly
+    41 0000001B 746B                            je Final
+    42                                          
+    43 0000001D FF35[0C000000]                  push dword [file_descriptor1]
+    44 00000023 6A64                            push dword len
+    45 00000025 6A01                            push dword 1               ;read the text from the file
+    46 00000027 68[10000000]                    push dword text
+    47 0000002C FF15[00000000]                  call [fread]
+    48 00000032 83C410                          add ESP, 4*4
+    49                                          
+    50 00000035 BF00000000                      mov EDI, 0
+    51                                          parseTheString:
+    52 0000003A 80BF[10000000]20                            cmp byte [text + EDI] , 20h         ;check if the actual character is a space
+    53 00000041 740B                                        je increaseNrOfWords
+    54                                                      
+    55 00000043 80BF[10000000]00                            cmp byte [text + EDI], 0            ;check if we are at the end of the string
+    56 0000004A 7402                                        je increaseNrOfWords
+    57                                                      
+    58 0000004C EB0F                                        jmp continue
+    59                                                      
+    60                                                      increaseNrOfWords:
+    61 0000004E FE05[75000000]                                          inc byte [nrOfWords]
+    62                                                      
+    63 00000054 80BF[10000000]00                            cmp byte [text + EDI], 0
+    64 0000005B 7403                                        je outOfRepeat
+    65                                                      
+    66                                                      continue:
+    67                                                      
+    68 0000005D 47                                          inc EDI
+    69 0000005E EBDA                                        jmp parseTheString
+    70                                          
+    71                                          outOfRepeat:
+    72                                          
+    73 00000060 B800000000                      mov EAX, 0
+    74 00000065 A0[75000000]                    mov AL, [nrOfWords]
+    75                                          
+    76 0000006A 50                              push EAX ;nrOfWords
+    77 0000006B 68[76000000]                    push dword format       ;print the number of words in the file
+    78 00000070 FF15[00000000]                  call [printf]
+    79 00000076 83C408                          add ESP, 4*2
+    80                                          
+    81 00000079 FF35[0C000000]                  push dword [file_descriptor1]
+    82 0000007F FF15[00000000]                  call [fclose]                   ;close the file
+    83 00000085 83C404                          add ESP, 4  
+    84                                          
+    85                                          Final:
+    86                                          ; exit(0)
+    87 00000088 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    88 0000008A FF15[00000000]                  call    [exit]       ; call exit to terminate the program

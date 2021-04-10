@@ -1,0 +1,32 @@
+     1                                  bits 32
+     2                                  segment code use32 public code
+     3                                  
+     4                                  global function
+     5                                  
+     6                                  function:
+     7 00000000 8B742408                        mov ESI, [ESP + 8] ;text
+     8 00000004 8B4C2404                        mov ECX, [esp + 4] ;nrOfWords
+     9                                          
+    10 00000008 BF00000000                      mov EDI, 0
+    11                                          .parseTheString:
+    12 0000000D 803C3E20                                    cmp byte [ESI + EDI] , 20h         ;check if the actual character is a space
+    13 00000011 7408                                        je .increaseNrOfWords
+    14                                                      
+    15 00000013 803C3E00                                    cmp byte [ESI + EDI], 0            ;check if we are at the end of the string
+    16 00000017 7402                                        je .increaseNrOfWords
+    17                                                      
+    18 00000019 EB08                                        jmp .continuee
+    19                                                      
+    20                                                      .increaseNrOfWords:
+    21 0000001B FE01                                                    inc byte [ECX]
+    22                                                      
+    23 0000001D 803C3E00                                    cmp byte [ESI + EDI], 0
+    24 00000021 7403                                        je .outOfRepeat
+    25                                                      
+    26                                                      .continuee:
+    27                                                      
+    28 00000023 47                                          inc EDI
+    29 00000024 EBE7                                        jmp .parseTheString
+    30                                          
+    31                                          .outOfRepeat:
+    32 00000026 C3                          ret
