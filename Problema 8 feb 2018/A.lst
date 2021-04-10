@@ -1,0 +1,71 @@
+     1                                  bits 32
+     2                                  
+     3                                  global start
+     4                                  
+     5                                  ;A string of doublewords is given ( defined in module a.asm). Build the string of byte ranks
+     6                                  ;that have the maximum value from each doubleword (considering them unsigned) by calling a 
+     7                                  ;procedure from module b.asm. This procedure should also compute the sum of these bytes.
+     8                                  ;Next, in the main module (a.asm) print this string of bytes on the screen (unsigned) and also print
+     9                                  ;the sum of these bytes(signed).
+    10                                  
+    11                                  ;Example: If the string of doublewords is:
+    12                                  ;sir dd 1234A678h, 12345678h, 1AC3B47Dh, FEDC9876h
+    13                                  ;the bytes of max value are respectively A6h, 78h, C3h, FEh,
+    14                                  ;the corresponding string of bytes ranks being "3421",
+    15                                  ;and the sum of these bytes being -33.
+    16                                  
+    17                                  extern B
+    18                                  extern exit, printf
+    19                                  
+    20                                  import printf msvcrt.dll
+    21                                  import exit msvcrt.dll
+    22                                  
+    23                                  segment data use32 class=data
+    24                                  
+    25 00000000 78A63412785634127D-         given_string dd 1234A678h, 12345678h, 1AC3B47Dh, 0FEDC9876h
+    25 00000009 B4C31A7698DCFE     
+    26                                      len equ ($-given_string)/4
+    27 00000010 00<rept>                    destination_string times len db 0
+    28 00000014 00000000                    destination dd 0
+    29 00000018 FF<rept>                    sum_of_bytes times 32 db -1
+    30 00000038 256400                      format db "%d", 0
+    31 0000003B 200A0D00                    format2 db " ", 10, 13, 0
+    32 0000003F 00000000                    copy dd 0
+    33                                      
+    34                                  
+    35                                  segment code use32 class=code
+    36                                  start:
+    37                                  
+    38 00000000 6A04                        push dword len
+    39 00000002 68[10000000]                push dword destination_string
+    40 00000007 68[00000000]                push dword given_string
+    41 0000000C E8(00000000)                call B
+    42 00000011 83C40C                      add ESP, 4*3
+    43                                      
+    44 00000014 A3[18000000]                mov [sum_of_bytes], EAX
+    45                                      
+    46 00000019 B900000000                  mov ECX, 0
+    47                                      for_every_byte:
+    48 0000001E 8A81[10000000]                  mov AL, [destination_string + ECX]
+    49 00000024 51                              push ECX
+    50 00000025 A2[14000000]                    mov [destination], AL
+    51 0000002A FF35[14000000]                  push dword [destination]
+    52 00000030 68[38000000]                    push dword format
+    53 00000035 FF15[00000000]                  call [printf]
+    54 0000003B 83C408                          add ESP, 4*2
+    55 0000003E 59                              pop ECX
+    56 0000003F 41                              inc ECX
+    57 00000040 83F904                          cmp ECX, len
+    58 00000043 75D9                            jne for_every_byte
+    59                                      
+    60 00000045 68[3B000000]                push dword format2
+    61 0000004A FF15[00000000]              call [printf]
+    62 00000050 83C404                      add ESP, 4*1
+    63                                      
+    64 00000053 FF35[18000000]              push dword [sum_of_bytes]
+    65 00000059 68[38000000]                push dword format
+    66 0000005E FF15[00000000]              call [printf]
+    67 00000064 83C408                      add ESP, 4*2
+    68                                      
+    69 00000067 6A00                        push dword 0
+    70 00000069 FF15[00000000]              call [exit]

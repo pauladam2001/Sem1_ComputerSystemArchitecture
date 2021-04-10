@@ -1,0 +1,89 @@
+     1                                  bits 32
+     2                                  
+     3                                  extern _printf
+     4                                  
+     5                                  global _function
+     6                                  
+     7                                  segment data public data use32
+     8 00000000 25730A0D00                  format2 db "%s", 10 ,13, 0
+     9                                  
+    10                                  segment code use32 public code
+    11                                  
+    12                                  _function:
+    13 00000000 55                              push EBP
+    14 00000001 89E5                            mov EBP, ESP
+    15                                          
+    16 00000003 8B4508                          mov EAX, [EBP + 8] ;given sentence
+    17 00000006 8B5D0C                          mov EBX, [EBP + 12] ;new word
+    18                                   
+    19                                          
+    20 00000009 BE00000000                      mov ESI, 0
+    21 0000000E BF00000000                      mov EDI, 0
+    22                                          
+    23                                          .ParseTheString:  ; the big loop (it stops when the sentence is parsed)
+    24                                  
+    25                                              ;call MMlength ; we find the length of the word (input: EAX (the given sentence), output: the position of the next space)
+    26                                              .FindLength:  ; with this repeat we find how long the word is (we stop when we find a space or 0 (for the last word))
+    27 00000013 803C3820                                cmp byte [EAX + EDI] , 20h ; 20h = ASCII of space
+    28 00000017 7409                                    je .OutOfRepeat
+    29 00000019 803C3800                                cmp byte [EAX + EDI] , 0 ; 0 for last word
+    30 0000001D 7403                                    je .OutOfRepeat
+    31                                  
+    32 0000001F 47                                      inc EDI         ; if the character is not a space or 0, then we continue
+    33 00000020 EBF1                                jmp .FindLength
+    34                                  
+    35                                              .OutOfRepeat:
+    36                                              
+    37 00000022 BA00000000                          mov EDX, 0
+    38 00000027 B964000000                          mov ECX, 100
+    39                                              
+    40                                              ;call MMclear ; we clear new_word in order to form another reversed word (input: EBX (the new word), output: EBX)
+    41                                              .ClearTheNewWord: ; with this loop we clear the word where we will form the mirrored word of the actual one
+    42 0000002C C6041300                                        mov byte [EBX + EDX], 0
+    43 00000030 42                                              inc EDX
+    44 00000031 E2F9                                loop .ClearTheNewWord
+    45                                              
+    46 00000033 89F9                                mov ECX, EDI
+    47 00000035 29F1                                sub ECX, ESI  ; we put in ECX the length of the word
+    48                                              
+    49 00000037 57                                  push EDI ; we need to keep EDI
+    50                                              
+    51 00000038 4F                                  dec EDI ;the character before the space
+    52 00000039 BA00000000                          mov EDX, 0 ; with edx we parse the new_word
+    53                                              
+    54                                              ;call MMreverse ; we form the mirrored word (input: EBX (the new word), the length of the actual word, output: the word reversed (in EBX))
+    55                                              .Mirror: ; with this loop we form the mirrored word
+    56 0000003E 51                                      push ECX
+    57 0000003F 8A0C38                                  mov CL, [EAX + EDI] ; CL = the last character of the word
+    58 00000042 880C13                                  mov [EBX + EDX], CL ; in EBX (new_word), on position EDX (from left to right) we put CL
+    59 00000045 59                                      pop ECX ; we pop back ECX because we need it for the loop
+    60 00000046 42                                      inc EDX
+    61 00000047 4F                                      dec EDI
+    62 00000048 E2F4                                loop .Mirror
+    63                                              
+    64 0000004A 60                                  pushad ; we push all registers because the printf will change the values
+    65                                              
+    66                                              ;call MMprint ; we print the formed reversed word (input: the new word (EBX), output: displays the reversed word in the console)
+    67 0000004B 53                                  push dword EBX
+    68 0000004C 68[00000000]                        push dword format2  ; we print the word that we obtained
+    69 00000051 E8(00000000)                        call _printf
+    70 00000056 83C408                              add ESP, 4*2
+    71                                                  
+    72 00000059 61                                  popad ; we pop all the values of registers from the stack
+    73                                              
+    74 0000005A 5F                                  pop EDI ; we get back the value of EDI from the stack
+    75                                              
+    76 0000005B 803C3800                            cmp byte [EAX + EDI], 0 ; we check if we have parsed the whole sentence
+    77 0000005F 7408                                je .finish
+    78                                              
+    79 00000061 89FE                                mov ESI, EDI
+    80 00000063 46                                  inc ESI ; next word, after space ; if we are not at the end of the sentence we continue searching words
+    81 00000064 83C701                              add EDI, 1
+    82 00000067 EBAA                                jmp .ParseTheString
+    83                                              
+    84                                          .finish:
+    85                                          
+    86 00000069 89EC                            mov ESP, EBP
+    87 0000006B 5D                              pop EBP
+    88                                      
+    89 0000006C C3                         ret

@@ -1,0 +1,62 @@
+     1                                  bits 32
+     2                                  
+     3                                  global function
+     4                                  
+     5                                  extern printf
+     6                                  import printf msvcrt.dll
+     7                                  
+     8                                  segment data use32 class=data
+     9 00000000 00<rept>                    sum_string times 100 db 0
+    10 00000064 00                          sum_string_length db 0
+    11 00000065 00000000                    sum dd 0
+    12 00000069 257500                      format db "%u", 0
+    13                                  
+    14                                  segment code use32 class=code
+    15                                  
+    16                                  function:
+    17 00000000 8B742404                        mov ESI, [ESP + 4]
+    18 00000004 8B4C2408                        mov ECX, [ESP + 8]
+    19                                          
+    20 00000008 BF[00000000]                    mov EDI, sum_string
+    21                                          
+    22                                          parse_string:
+    23 0000000D AD                                          lodsd
+    24 0000000E BA00000000                                  mov EDX, 0
+    25 00000013 BB0A000000                                  mov EBX, 10
+    26                                                      compute_sum:
+    27 00000018 F7F3                                                    div EBX
+    28                                                                  
+    29 0000001A F7C201000000                                            test EDX, 1h
+    30 00000020 7A02                                                    jp is_even
+    31 00000022 EB06                                                    jmp not_even
+    32                                                                  
+    33                                                                  is_even:
+    34 00000024 0115[65000000]                                                  add dword [sum], EDX
+    35                                                                  
+    36                                                                  not_even:
+    37                                                                  
+    38 0000002A BA00000000                                              mov EDX, 0
+    39 0000002F 83F800                                                  cmp EAX, 0
+    40 00000032 75E4                                                    jne compute_sum
+    41                                                      
+    42 00000034 A0[65000000]                                mov AL, [sum]
+    43 00000039 AA                                          stosb
+    44 0000003A 8005[64000000]01                            add byte [sum_string_length], 1
+    45                                                      
+    46 00000041 E2CA                                loop parse_string
+    47                                      
+    48 00000043 BE[00000000]                    mov ESI, sum_string
+    49 00000048 8B0D[64000000]                  mov ECX, [sum_string_length]
+    50                                          print_sums:
+    51 0000004E 60                                      pushad
+    52 0000004F B800000000                              mov EAX, 0
+    53 00000054 AC                                      lodsb
+    54 00000055 50                                      push EAX
+    55 00000056 68[69000000]                            push dword format
+    56 0000005B FF15[00000000]                          call [printf]
+    57 00000061 83C408                                  add ESP, 4*2
+    58 00000064 61                                      popad
+    59                                                  
+    60 00000065 E2E7                                loop print_sums
+    61                                      
+    62 00000067 C3                          ret

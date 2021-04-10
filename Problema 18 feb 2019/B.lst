@@ -1,0 +1,36 @@
+     1                                  bits 32
+     2                                  
+     3                                  global B
+     4                                  
+     5                                  segment data use32 class=data
+     6                                  
+     7 00000000 00000000                    counter dd 0
+     8 00000004 00000000                    sum_of_bits dd 0
+     9                                  segment code use32 class=code
+    10                                  
+    11                                  B:
+    12                                  
+    13                                  ; ESP - return address
+    14                                  ; ESP + 4 - destination_string
+    15                                  ; ESP + 8 - length
+    16 00000000 8B742404                    mov ESI, [ESP + 4]
+    17 00000004 8B4C2408                    mov ECX, [ESP + 8]
+    18 00000008 FC                          cld
+    19                                      for_every_word:
+    20 00000009 C705[00000000]0000-             mov dword[counter], 0
+    20 00000011 0000               
+    21 00000013 66AD                            lodsw
+    22 00000015 51                              push ECX
+    23 00000016 B910000000                      mov ECX, 16
+    24                                          for_every_byte:
+    25 0000001B 66D1E0                              shl AX, 1
+    26 0000001E 7306                                jnc continue
+    27 00000020 FF05[00000000]                      inc dword[counter]
+    28                                              continue:
+    29 00000026 E2F3                                loop for_every_byte
+    30 00000028 59                              pop ECX
+    31 00000029 8B15[00000000]                  mov EDX, dword[counter]
+    32 0000002F 0115[04000000]                  add [sum_of_bits], EDX
+    33 00000035 E2D2                        loop for_every_word
+    34 00000037 A1[04000000]                mov EAX, [sum_of_bits]
+    35 0000003C C3                          ret

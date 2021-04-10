@@ -1,0 +1,31 @@
+     1                                  bits 32
+     2                                  
+     3                                  global A
+     4                                  
+     5                                  segment data use32 class=data
+     6 00000000 0000                        destination dw 0
+     7                                  
+     8                                  segment code use32 class=code
+     9                                  
+    10                                  
+    11                                  A:
+    12                                  
+    13                                  ; ESP - return address
+    14                                  ; ESP + 4 - initial string
+    15                                  ; ESP + 8 - destination string
+    16                                  ; ESP + 12 - length
+    17                                  
+    18 00000000 8B742404                    mov ESI, [ESP + 4]
+    19 00000004 8B7C2408                    mov EDI, [ESP + 8]
+    20 00000008 8B4C240C                    mov ECX, [ESP + 12]
+    21 0000000C FC                          cld
+    22                                      for_every_double_word:
+    23 0000000D AC                              lodsb
+    24 0000000E AC                              lodsb
+    25 0000000F AA                              stosb
+    26 00000010 AC                              lodsb
+    27 00000011 AC                              lodsb
+    28 00000012 AA                              stosb
+    29 00000013 E2F8                        loop for_every_double_word
+    30                                      
+    31 00000015 C3                          ret

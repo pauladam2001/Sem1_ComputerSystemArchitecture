@@ -1,0 +1,135 @@
+     1                                  bits 32
+     2                                  
+     3                                  global function
+     4                                  
+     5                                  extern printf 
+     6                                  import printf msvcrt.dll
+     7                                  
+     8                                  segment data use32 class=data
+     9 00000000 00000000                    copy_of_nr dd 0
+    10 00000004 00                          degree db 0
+    11 00000005 00                          max_degree db 0
+    12 00000006 00                          sem db 0
+    13 00000007 257500                      format db "%u", 0
+    14 0000000A 256300                      char_space db "%c", 0
+    15 0000000D 00<rept>                    nr_in_base_2 times 100 db 0
+    16                                      
+    17                                  segment code use32 class=code
+    18                                  
+    19                                  function:
+    20 00000000 8B742404                        mov ESI, [ESP + 4]
+    21 00000004 8B7C2408                        mov EDI, [ESP + 8]
+    22 00000008 8B4C240C                        mov ECX, [ESP + 12]
+    23                                          
+    24 0000000C FC                              cld
+    25                                          parse_init_string:
+    26 0000000D 51                                            push ECX
+    27 0000000E AD                                            lodsd
+    28 0000000F A3[00000000]                                  mov [copy_of_nr], EAX
+    29                                                        check_degree:
+    30 00000014 D1E0                                                       shl EAX, 1
+    31 00000016 7202                                                       jc inc_degree
+    32                                                                     
+    33 00000018 EB0E                                                       jmp check_if_3
+    34                                                                     
+    35                                                                     inc_degree:
+    36 0000001A 8005[04000000]01                                                    add byte [degree], 1
+    37 00000021 C605[06000000]01                                                    mov byte [sem], 1
+    38                                                                     
+    39                                                                     check_if_3:
+    40 00000028 803D[04000000]03                                                    cmp byte [degree], 3
+    41 0000002F 7402                                                                je increase_max_degree
+    42                                                                              
+    43 00000031 720E                                                                jb not_3
+    44                                                                              
+    45                                                                              increase_max_degree:
+    46 00000033 8005[05000000]01                                                                    add byte [max_degree], 1
+    47 0000003A C605[04000000]00                                                                    mov byte [degree], 0
+    48                                                                                              
+    49                                                                              not_3:
+    50 00000041 803D[06000000]01                                                        cmp byte [sem], 1
+    51 00000048 7407                                                                    je continue
+    52                                                                                  
+    53                                                                                  make_it_zero:   ;if the carry was 0
+    54 0000004A C605[04000000]00                                                                    mov byte [degree], 0
+    55                                                                                  
+    56                                                                                  continue:
+    57 00000051 C605[06000000]00                                                            mov byte [sem], 0
+    58                                                                     
+    59 00000058 83F800                                                     cmp EAX, 0
+    60 0000005B 75B7                                                       jne check_degree
+    61                                                         
+    62 0000005D 803D[05000000]02                               cmp byte [max_degree], 2
+    63 00000064 7302                                           jae append_nr
+    64                                                         
+    65 00000066 EB21                                           jmp next
+    66                                                         
+    67                                                         append_nr:
+    68 00000068 A1[00000000]                                            mov EAX, [copy_of_nr]
+    69 0000006D AB                                                      stosd
+    70 0000006E C605[05000000]00                                        mov byte [max_degree], 0
+    71                                                                  
+    72 00000075 FF35[00000000]                                          push dword [copy_of_nr]
+    73 0000007B 68[07000000]                                            push dword format
+    74 00000080 FF15[00000000]                                          call [printf]
+    75 00000086 83C408                                                  add ESP, 4*2
+    76                                                         
+    77                                                         next:
+    78                                                         
+    79 00000089 AD                                             lodsd
+    80 0000008A 59                                             pop ECX
+    81                                                         
+    82 0000008B E280                            loop parse_init_string
+    83                                          
+    84                                          
+    85                                          print_base_2:
+    86                                          
+    87 0000008D 89FE                            mov ESI, EDI
+    88 0000008F BA00000000                      mov EDX, 0
+    89                                          
+    90 00000094 AD                              lodsd
+    91 00000095 83F800                          cmp EAX, 0
+    92 00000098 746D                            je final
+    93                                          
+    94 0000009A BB02000000                      mov EBX, 2
+    95                                          
+    96 0000009F B900000000                      mov ECX, 0
+    97                                          
+    98                                          formBase2:
+    99 000000A4 F7F3                                    div EBX
+   100 000000A6 8991[0D000000]                          mov [nr_in_base_2 + ECX], EDX
+   101 000000AC 83C101                                  add ECX, 1
+   102 000000AF BA00000000                              mov EDX, 0
+   103                                                  
+   104 000000B4 83F800                                  cmp EAX, 0
+   105 000000B7 75EB                                    jne formBase2
+   106 000000B9 83E901                          sub ECX, 1
+   107                                          printString:
+   108 000000BC B800000000                                  mov EAX, 0
+   109 000000C1 8A81[0D000000]                              mov AL, [nr_in_base_2 + ECX]
+   110 000000C7 50                                          push EAX
+   111 000000C8 68[07000000]                                push dword format
+   112 000000CD FF15[00000000]                              call [printf]
+   113 000000D3 83C408                                      add ESP, 4*2
+   114 000000D6 49                                          dec ECX
+   115 000000D7 83F900                                      cmp ECX, 0
+   116 000000DA 7DE0                                        jge printString
+   117                                                      
+   118 000000DC 6A20                            push dword " "
+   119 000000DE 68[0A000000]                    push dword char_space
+   120 000000E3 FF15[00000000]                  call [printf]
+   121 000000E9 83C408                          add ESP, 4*2
+   122                                          
+   123 000000EC BA00000000                      mov EDX, 0
+   124 000000F1 B919000000                      mov ECX, 25
+   125                                          clearWord:
+   126 000000F6 C782[0D000000]0000-                     mov dword [nr_in_base_2 + EDX], 0
+   126 000000FE 0000               
+   127 00000100 83C204                                  add EDX, 4
+   128 00000103 E2F1                                    loop clearWord
+   129                                          
+   130 00000105 EB86                            jmp print_base_2
+   131                                          
+   132                                          final:
+   133                                          
+   134 00000107 C3                          ret

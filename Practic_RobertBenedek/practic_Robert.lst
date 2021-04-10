@@ -1,0 +1,137 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ;Sa se citeasca de la tastatura cifre pana la intalnirea caracterului '$'. Sa se scrie intr-un fisier numarul cel mai mic posibil format din exact trei cifre pare din cele citite de la tastatura.
+     4                                  
+     5                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     6                                  global start        
+     7                                  
+     8                                  ; declare external functions needed by our program
+     9                                  extern exit, scanf, fprintf, fopen, fclose, printf               ; tell nasm that exit exists even if we won't be defining it
+    10                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+    11                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    12                                  import scanf msvcrt.dll
+    13                                  import fprintf msvcrt.dll
+    14                                  import fopen msvcrt.dll
+    15                                  import fclose msvcrt.dll
+    16                                  import printf msvcrt.dll
+    17                                  
+    18                                  ; our data is declared here (the variables needed by our program)
+    19                                  segment data use32 class=data
+    20 00000000 496E74726F64756365-             message db "Introduce a digit: ", 10, 13, 0
+    20 00000009 20612064696769743A-
+    20 00000012 200A0D00           
+    21 00000016 46696C65312E747874-             file_name db "File1.txt", 0
+    21 0000001F 00                 
+    22 00000020 6100                            access_mode db "a", 0
+    23 00000022 256300                          format db "%c", 0
+    24 00000025 FFFFFFFF                        file_desc dd -1
+    25 00000029 00<rept>                        array_of_digits times 100 db 0
+    26 0000008D 00                              length_of_array db 0
+    27 0000008E 00                              digit db 0
+    28 0000008F 00                              counter db 0
+    29                                          
+    30                                  
+    31                                  ; our code starts here
+    32                                  segment code use32 class=code
+    33                                      start:
+    34                                          
+    35 00000000 BE[29000000]                    mov ESI, array_of_digits
+    36                                          read_digits:
+    37 00000005 68[00000000]                                push dword message
+    38 0000000A FF15[00000000]                              call [printf]
+    39 00000010 83C404                                      add ESP, 4
+    40                                          
+    41 00000013 68[8E000000]                                push dword digit
+    42 00000018 68[22000000]                                push dword format
+    43 0000001D FF15[00000000]                              call [scanf]
+    44 00000023 83C408                                      add ESP, 4*2
+    45                                                      
+    46 00000026 803D[8E000000]24                            cmp byte [digit], '$'
+    47 0000002D 7428                                        je done
+    48                                                      
+    49                                                      
+    50 0000002F A0[8E000000]                                mov AL, [digit]
+    51                                                      ;mov byte [array_of_digits + length_of_array], AL
+    52 00000034 8806                                        mov byte [ESI], AL
+    53 00000036 46                                          inc ESI
+    54 00000037 8005[8D000000]01                            add byte [length_of_array], 1
+    55                                                      
+    56 0000003E C605[8E000000]00                            mov byte [digit], 0
+    57                                                      
+    58 00000045 68[8E000000]                                push dword digit
+    59 0000004A 68[22000000]                                push dword format   ;nu stiu ce are scanf-ul
+    60 0000004F FF15[00000000]                              call [scanf]
+    61                                                      
+    62 00000055 EBAE                                        jmp read_digits
+    63                                          
+    64                                          done:
+    65                                          
+    66 00000057 66BA0100                        mov DX, 1
+    67                                          whilee:
+    68 0000005B 6683FA00                                cmp DX, 0
+    69 0000005F 7437                                    je endd
+    70 00000061 BE[29000000]                            mov ESI, array_of_digits
+    71 00000066 66BA0000                                mov DX, 0
+    72 0000006A B900000000                              mov ECX, 0
+    73 0000006F 8A0D[8D000000]                          mov CL, [length_of_array]
+    74 00000075 83E901                                  sub ECX, 1
+    75 00000078 FC                                      cld
+    76                                                  repeatt:
+    77 00000079 8A06                                            mov AL, byte [ESI]
+    78 0000007B 3A4601                                          cmp AL, byte [ESI + 1]
+    79 0000007E 760C                                            jbe next
+    80                                                          
+    81 00000080 8A5E01                                          mov BL, byte [ESI + 1]
+    82 00000083 881E                                            mov byte [ESI], BL
+    83 00000085 884601                                          mov byte [ESI + 1], AL
+    84 00000088 66BA0100                                        mov DX, 1
+    85                                                          
+    86                                                          next:
+    87 0000008C 83C601                                              add ESI, 1
+    88 0000008F E2E8                                                loop repeatt
+    89                                                              
+    90 00000091 803E00                                              cmp byte [ESI], 0
+    91 00000094 7402                                                je endd
+    92                                                              
+    93 00000096 EBC3                                                jmp whilee
+    94                                                          
+    95                                          endd:
+    96                                          
+    97 00000098 68[20000000]                    push dword access_mode
+    98 0000009D 68[16000000]                    push dword file_name
+    99 000000A2 FF15[00000000]                  call [fopen]
+   100 000000A8 83C408                          add ESP, 4*2
+   101                                          
+   102 000000AB A3[25000000]                    mov [file_desc], EAX
+   103 000000B0 83F800                          cmp EAX, 0
+   104 000000B3 744C                            je Final
+   105                                          
+   106 000000B5 BB00000000                      mov EBX, 0
+   107                                          print_3_even_digits:
+   108 000000BA F683[29000000]01                                test byte [array_of_digits + EBX], 01h
+   109 000000C1 7A02                                            jp printing
+   110 000000C3 EB21                                            jmp nextt
+   111                                                          
+   112                                                          printing:
+   113 000000C5 8005[8F000000]01                                        add byte [counter], 1
+   114 000000CC FFB3[29000000]                                          push dword [array_of_digits + EBX]
+   115 000000D2 68[22000000]                                            push dword format
+   116 000000D7 FF35[25000000]                                          push dword [file_desc]
+   117 000000DD FF15[00000000]                                          call [fprintf]
+   118 000000E3 83C40C                                                  add ESP, 4*3
+   119                                                                  
+   120                                                          nextt:
+   121 000000E6 83C301                                              add EBX, 1
+   122                                                          
+   123 000000E9 803D[8F000000]03                                cmp byte [counter], 3
+   124 000000F0 72C8                                            jb print_3_even_digits
+   125                                      
+   126 000000F2 FF35[25000000]                  push dword [file_desc]
+   127 000000F8 FF15[00000000]                  call [fclose]
+   128 000000FE 83C404                          add ESP, 4
+   129                                      
+   130                                          Final:
+   131                                      
+   132                                          ; exit(0)
+   133 00000101 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+   134 00000103 FF15[00000000]                  call    [exit]       ; call exit to terminate the program

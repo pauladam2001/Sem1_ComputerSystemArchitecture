@@ -1,0 +1,126 @@
+     1                                  bits 32
+     2                                  ;Write a program that reads a text file that contains sentences (sentences are separated by '!') and writes in a different file only the sentence of even index (0, 2, ...). The name of the 2 files are given in the d
+     3                                  
+     4                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     5                                  global start        
+     6                                  
+     7                                  ; declare external functions needed by our program
+     8                                  extern exit, fopen, fclose, fprintf, fread, printf               ; tell nasm that exit exists even if we won't be defining it
+     9                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+    10                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    11                                  import fopen msvcrt.dll
+    12                                  import fclose msvcrt.dll
+    13                                  import fprintf msvcrt.dll
+    14                                  import printf msvcrt.dll
+    15                                  import fread msvcrt.dll
+    16                                  
+    17                                  ; our data is declared here (the variables needed by our program)
+    18                                  segment data use32 class=data
+    19 00000000 46696C65312E747874-             file_name1 db "File1.txt", 0
+    19 00000009 00                 
+    20 0000000A 46696C65322E747874-             file_name2 db "File2.txt", 0
+    20 00000013 00                 
+    21 00000014 7200                            access_mode1 db "r", 0
+    22 00000016 6100                            access_mode2 db "a", 0
+    23 00000018 FFFFFFFF                        file_desc1 dd -1
+    24 0000001C FFFFFFFF                        file_desc2 dd -1
+    25                                          len equ 100
+    26 00000020 00<rept>                        text times len db 0
+    27 00000084 00                              counter db 0
+    28 00000085 00<rept>                        sentence times len db 0
+    29 000000E9 25730A0D00                      typee db "%s", 10, 13, 0
+    30                                      
+    31                                  
+    32                                  ; our code starts here
+    33                                  segment code use32 class=code
+    34                                      start:
+    35 00000000 68[14000000]                    push dword access_mode1
+    36 00000005 68[00000000]                    push dword file_name1
+    37 0000000A FF15[00000000]                  call [fopen]
+    38 00000010 83C408                          add ESP, 4*2
+    39                                          
+    40 00000013 A3[18000000]                    mov [file_desc1], EAX
+    41 00000018 83F800                          cmp EAX, 0
+    42 0000001B 0F84BE000000                    je Final
+    43                                          
+    44 00000021 68[16000000]                    push dword access_mode2
+    45 00000026 68[0A000000]                    push dword file_name2
+    46 0000002B FF15[00000000]                  call [fopen]
+    47 00000031 83C408                          add ESP, 4*2
+    48                                          
+    49 00000034 A3[1C000000]                    mov [file_desc2], EAX
+    50 00000039 83F800                          cmp EAX, 0
+    51 0000003C 0F849D000000                    je Final
+    52                                          
+    53                                          read_sentences:
+    54 00000042 FF35[18000000]                              push dword [file_desc1]
+    55 00000048 6A64                                        push dword len
+    56 0000004A 6A01                                        push dword 1
+    57 0000004C 68[20000000]                                push dword text
+    58 00000051 FF15[00000000]                              call [fread]
+    59 00000057 83C410                                      add ESP, 4*4
+    60                                                      
+    61 0000005A 83F800                                      cmp EAX, 0
+    62 0000005D 7462                                        je done
+    63                                                      
+    64                                                      ;cmp byte [counter], 0
+    65                                                      
+    66 0000005F BE[20000000]                                mov ESI, text
+    67 00000064 BF[85000000]                                mov EDI, sentence
+    68                                                      parse_sentences:
+    69 00000069 AC                                                          lodsb
+    70 0000006A 3C21                                                        cmp AL, '!'
+    71 0000006C 7403                                                        je do_we_print
+    72                                                                      
+    73 0000006E AA                                                          stosb
+    74                                                                      
+    75 0000006F EBF8                                                        jmp parse_sentences
+    76                                                                      
+    77                                                      do_we_print:
+    78 00000071 F605[84000000]01                                        test byte [counter], 01h
+    79 00000078 7A02                                                    jp printing
+    80                                                                  
+    81 0000007A EB19                                                    jmp continue
+    82                                                                  
+    83                                                                  printing:
+    84 0000007C 68[85000000]                                                    push dword sentence
+    85 00000081 68[E9000000]                                                    push dword typee
+    86 00000086 FF35[1C000000]                                                  push dword [file_desc2]
+    87 0000008C FF15[00000000]                                                  call [fprintf]
+    88 00000092 83C40C                                                          add ESP, 4*3
+    89                                                      
+    90                                                      continue:
+    91 00000095 8005[84000000]01                                    add byte [counter], 1
+    92                                                              ;inc ESI
+    93                                                      
+    94 0000009C BA00000000                                  mov EDX, 0
+    95 000000A1 B919000000                                  mov ECX, 25
+    96                                                      clearSentence:
+    97 000000A6 C782[85000000]0000-                                 mov dword [sentence + EDX], 0
+    97 000000AE 0000               
+    98 000000B0 83C204                                              add EDX, 4
+    99 000000B3 E2F1                                        loop clearSentence
+   100                                                      
+   101 000000B5 BF[85000000]                                mov EDI, sentence
+   102                                                      
+   103 000000BA 803E00                                      cmp byte [ESI], 0
+   104 000000BD 75AA                                        jne parse_sentences
+   105                                                      
+   106                                                      
+   107 000000BF EB81                                        jmp read_sentences
+   108                                          
+   109                                          done:
+   110                                          
+   111 000000C1 FF35[18000000]                  push dword [file_desc1]
+   112 000000C7 FF15[00000000]                  call [fclose]
+   113 000000CD 83C404                          add ESP, 4
+   114                                          
+   115 000000D0 FF35[1C000000]                  push dword [file_desc2]
+   116 000000D6 FF15[00000000]                  call [fclose]
+   117 000000DC 83C404                          add ESP, 4
+   118                                                      
+   119                                          Final:
+   120                                          
+   121                                          ; exit(0)
+   122 000000DF 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+   123 000000E1 FF15[00000000]                  call    [exit]       ; call exit to terminate the program
