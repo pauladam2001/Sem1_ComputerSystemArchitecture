@@ -1,0 +1,84 @@
+     1                                  bits 32
+     2                                  
+     3                                  extern _fscanf_s
+     4                                  extern _fprintf
+     5                                  
+     6                                  global _function
+     7                                  
+     8                                  
+     9                                  segment data use32 class=data
+    10 00000000 00000000                    numberToRead dd 0
+    11 00000004 257500                      number_type db "%u", 0
+    12 00000007 256300                      char_space db "%c", 0
+    13 0000000A FFFFFFFF                    file_descriptor1 dd -1
+    14 0000000E FFFFFFFF                    file_descriptor2 dd -1
+    15                                    
+    16                                  _function:
+    17 00000012 55                              push EBP
+    18 00000013 89E5                            mov EBP, ESP
+    19                                          
+    20 00000015 8B4508                          mov EAX, [EBP + 8]
+    21 00000018 A3[0A000000]                    mov [file_descriptor1], EAX
+    22 0000001D 8B450C                          mov EAX, [EBP + 12]
+    23 00000020 A3[0E000000]                    mov [file_descriptor2], EAX
+    24 00000025 8B7510                          mov ESI, [EBP + 16] ;stringWithNumbersInBase2
+    25                                  
+    26                                          .readNumbers:
+    27                                                      
+    28 00000028 68[00000000]                                push dword numberToRead
+    29 0000002D 68[04000000]                                push dword number_type
+    30 00000032 FF35[0A000000]                              push dword [file_descriptor1]
+    31 00000038 E8(00000000)                                call _fscanf_s                   ;read a number from the file
+    32 0000003D 83C40C                                      add ESP, 4*3
+    33                                                      
+    34 00000040 83F8FF                                      cmp EAX, -1         ;check if there are numbers in the file
+    35 00000043 747B                                        je .outOfLoop
+    36                                  
+    37                                                      
+    38 00000045 BA00000000                                  mov EDX, 0
+    39 0000004A A1[00000000]                                mov EAX, [numberToRead]
+    40                                                      
+    41 0000004F BB02000000                                  mov EBX, 2
+    42 00000054 BF00000000                                  mov EDI, 0
+    43                                                      .formBase2:
+    44 00000059 F7F3                                                div EBX ; EAX = EDX:EAX/2, EDX = EDX:EAX%2
+    45 0000005B 89143E                                              mov [ESI + EDI], EDX
+    46 0000005E 83C701                                              add EDI, 1 ; the rest will be 0 or 1, a byte        ;form the number in base 2
+    47 00000061 BA00000000                                          mov EDX, 0
+    48                                                              
+    49 00000066 83F800                                              cmp EAX, 0
+    50 00000069 75EE                                                jne .formBase2
+    51 0000006B 83EF01                                      sub EDI, 1
+    52                                                      .printString:
+    53 0000006E B800000000                                            mov EAX, 0
+    54 00000073 8A043E                                                mov AL, [ESI + EDI]
+    55 00000076 50                                                    push EAX
+    56 00000077 68[04000000]                                          push dword number_type                            ;print the numbers in base 2 (in reverse order is the correct order)
+    57 0000007C FF35[0E000000]                                        push dword [file_descriptor2]
+    58 00000082 E8(00000000)                                          call _fprintf
+    59 00000087 83C40C                                                add ESP, 4*3
+    60 0000008A 4F                                                    dec EDI
+    61 0000008B 83FF00                                                cmp EDI, 0
+    62 0000008E 7DDE                                                  jge .printString
+    63                                                      
+    64 00000090 6A20                                        push dword " "
+    65 00000092 68[07000000]                                push dword char_space
+    66 00000097 FF35[0E000000]                              push dword [file_descriptor2]       ;print a space between numbers
+    67 0000009D E8(00000000)                                call _fprintf
+    68 000000A2 83C40C                                      add ESP, 4*3
+    69                                                      
+    70                                                      
+    71 000000A5 BA00000000                                  mov EDX, 0
+    72 000000AA B919000000                                  mov ECX, 25
+    73                                                      .clearTheWords:
+    74 000000AF C7041600000000                                      mov dword [ESI + EDX], 0       ;clear the variable where we store the number
+    75 000000B6 83C204                                              add EDX, 4
+    76 000000B9 E2F4                                            loop .clearTheWords
+    77                                                      
+    78 000000BB E968FFFFFF                          jmp .readNumbers
+    79                                              
+    80                                          .outOfLoop:
+    81                                          
+    82 000000C0 89EC                            mov ESP, EBP
+    83 000000C2 5D                              pop EBP
+    84 000000C3 C3                         ret

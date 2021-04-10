@@ -1,0 +1,117 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit, fopen, fclose, fscanf, fprintf                ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                                            
+    11                                  import fopen msvcrt.dll
+    12                                  import fclose msvcrt.dll
+    13                                  import fscanf msvcrt.dll
+    14                                  import fprintf msvcrt.dll
+    15                                  
+    16                                  ;Se citeste din fisier un sir de numere. Sa se scrie sirul de numere in baza doi intr-un alt fisier.
+    17                                  
+    18                                  ; our data is declared here (the variables needed by our program)
+    19                                  segment data use32 class=data
+    20 00000000 46696C65312E747874-         file_name1 db "File1.txt", 0
+    20 00000009 00                 
+    21 0000000A 46696C65322E747874-         file_name2 db "File2.txt", 0
+    21 00000013 00                 
+    22 00000014 7200                        acces_mode1 db "r", 0
+    23 00000016 6100                        acces_mode2 db "a", 0
+    24 00000018 FFFFFFFF                    file_descriptor1 dd -1
+    25 0000001C FFFFFFFF                    file_descriptor2 dd -1
+    26 00000020 00000000                    numberToRead dd 0
+    27 00000024 257500                      number_type db "%u", 0
+    28 00000027 256300                      char_space db "%c", 0
+    29 0000002A 00<rept>                    stringWithNumbersInBase2 times 100 db 0
+    30                                  
+    31                                  ; our code starts here
+    32                                  segment code use32 class=code
+    33                                      start:
+    34 00000000 68[14000000]                    push dword acces_mode1
+    35 00000005 68[00000000]                    push dword file_name1
+    36 0000000A FF15[00000000]                  call [fopen]              ;open the file from where we read the numbers
+    37 00000010 83C408                          add ESP, 4*2
+    38 00000013 A3[18000000]                    mov [file_descriptor1], EAX
+    39                                          
+    40 00000018 68[16000000]                    push dword acces_mode2
+    41 0000001D 68[0A000000]                    push dword file_name2
+    42 00000022 FF15[00000000]                  call [fopen]              ;open the file where we will write the numbers in base 2
+    43 00000028 83C408                          add ESP, 4*2
+    44 0000002B A3[1C000000]                    mov [file_descriptor2], EAX
+    45                                          
+    46 00000030 83F800                          cmp EAX, 0      ;check if the files were open correctly
+    47 00000033 0F84C6000000                    je Final
+    48                                          
+    49                                          readNumbers:
+    50 00000039 68[20000000]                                push dword numberToRead
+    51 0000003E 68[24000000]                                push dword number_type
+    52 00000043 FF35[18000000]                              push dword [file_descriptor1]
+    53 00000049 FF15[00000000]                              call [fscanf]                   ;read a number from the file
+    54 0000004F 83C40C                                      add ESP, 4*3
+    55                                                      
+    56 00000052 83F8FF                                      cmp EAX, -1         ;check if there are numbers in the file
+    57 00000055 0F8486000000                                je outOfLoop
+    58                                                      
+    59 0000005B BA00000000                                  mov EDX, 0
+    60 00000060 A1[20000000]                                mov EAX, [numberToRead]
+    61                                                      
+    62 00000065 BB02000000                                  mov EBX, 2
+    63 0000006A BF00000000                                  mov EDI, 0
+    64                                                      formBase2:
+    65 0000006F F7F3                                                div EBX ; EAX = EDX:EAX/2, EDX = EDX:EAX%2
+    66 00000071 8997[2A000000]                                      mov [stringWithNumbersInBase2 + EDI], EDX
+    67 00000077 83C701                                              add EDI, 1 ; the rest will be 0 or 1, a byte        ;form the number in base 2
+    68 0000007A BA00000000                                          mov EDX, 0
+    69                                                              
+    70 0000007F 83F800                                              cmp EAX, 0
+    71 00000082 75EB                                                jne formBase2
+    72 00000084 83EF01                                      sub EDI, 1
+    73                                                      printString:
+    74 00000087 B800000000                                            mov EAX, 0
+    75 0000008C 8A87[2A000000]                                        mov AL, [stringWithNumbersInBase2 + EDI]
+    76 00000092 50                                                    push EAX
+    77 00000093 68[24000000]                                          push dword number_type                            ;print the numbers in base 2 (in reverse order is the correct order)
+    78 00000098 FF35[1C000000]                                        push dword [file_descriptor2]
+    79 0000009E FF15[00000000]                                        call [fprintf]
+    80 000000A4 83C40C                                                add ESP, 4*3
+    81 000000A7 4F                                                    dec EDI
+    82 000000A8 83FF00                                                cmp EDI, 0
+    83 000000AB 7DDA                                                  jge printString
+    84                                                      
+    85 000000AD 6A20                                        push dword " "
+    86 000000AF 68[27000000]                                push dword char_space
+    87 000000B4 FF35[1C000000]                              push dword [file_descriptor2]       ;print a space between numbers
+    88 000000BA FF15[00000000]                              call [fprintf]
+    89 000000C0 83C40C                                      add ESP, 4*3
+    90                                                      
+    91                                                      
+    92 000000C3 BA00000000                                  mov EDX, 0
+    93 000000C8 B919000000                                  mov ECX, 25
+    94                                                      clearTheWords:
+    95 000000CD C782[2A000000]0000-                                 mov dword [stringWithNumbersInBase2 + EDX], 0       ;clear the variable where we store the number
+    95 000000D5 0000               
+    96 000000D7 83C204                                              add EDX, 4
+    97 000000DA E2F1                                            loop clearTheWords
+    98                                                      
+    99 000000DC E958FFFFFF                          jmp readNumbers
+   100                                              
+   101                                          outOfLoop:
+   102                                          
+   103 000000E1 FF35[18000000]                  push dword [file_descriptor1]
+   104 000000E7 FF15[00000000]                  call [fclose]                       ;close file1
+   105 000000ED 83C404                          add ESP, 4
+   106                                          
+   107 000000F0 FF35[1C000000]                  push dword [file_descriptor2]
+   108 000000F6 FF15[00000000]                  call [fclose]                       ;close file2
+   109 000000FC 83C404                          add ESP, 4
+   110                                                      
+   111                                          Final:
+   112                                          ; exit(0)
+   113 000000FF 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+   114 00000101 FF15[00000000]                  call    [exit]       ; call exit to terminate the program

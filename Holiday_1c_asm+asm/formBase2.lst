@@ -1,0 +1,83 @@
+     1                                  bits 32
+     2                                  segment code use32 public code
+     3                                  
+     4                                  global function
+     5                                  
+     6                                  extern fprintf, fscanf
+     7                                  import fprintf msvcrt.dll
+     8                                  import fscanf msvcrt.dll
+     9                                  
+    10                                  segment data use32 class=data
+    11 00000000 00000000                    numberToRead dd 0
+    12 00000004 257500                      number_type db "%u", 0
+    13 00000007 256300                      char_space db "%c", 0
+    14 0000000A FFFFFFFF                    file_descriptor1 dd -1
+    15 0000000E FFFFFFFF                    file_descriptor2 dd -1
+    16                                    
+    17                                  function:
+    18                                  
+    19 00000012 8B742404                        mov ESI, [ESP + 4] ;stringWithNumbersInBase2
+    20 00000016 8B44240C                        mov EAX, [ESP + 12]
+    21 0000001A 8B5C2408                        mov EBX, [ESP + 8]
+    22 0000001E A3[0A000000]                    mov [file_descriptor1], EAX
+    23 00000023 891D[0E000000]                  mov [file_descriptor2], EBX
+    24                                          ;mov dword [file_descriptor1], [ESP + 12]
+    25                                          ;mov dword [file_descriptor2], [ESP + 8]
+    26                                          
+    27                                  
+    28                                          .readNumbers:
+    29                                                      
+    30 00000029 68[00000000]                                push dword numberToRead
+    31 0000002E 68[04000000]                                push dword number_type
+    32 00000033 FF35[0A000000]                              push dword [file_descriptor1]
+    33 00000039 FF15[00000000]                              call [fscanf]                   ;read a number from the file
+    34 0000003F 83C40C                                      add ESP, 4*3
+    35                                                      
+    36 00000042 83F8FF                                      cmp EAX, -1         ;check if there are numbers in the file
+    37 00000045 747D                                        je .outOfLoop
+    38                                  
+    39                                                      
+    40 00000047 BA00000000                                  mov EDX, 0
+    41 0000004C A1[00000000]                                mov EAX, [numberToRead]
+    42                                                      
+    43 00000051 BB02000000                                  mov EBX, 2
+    44 00000056 BF00000000                                  mov EDI, 0
+    45                                                      .formBase2:
+    46 0000005B F7F3                                                div EBX ; EAX = EDX:EAX/2, EDX = EDX:EAX%2
+    47 0000005D 89143E                                              mov [ESI + EDI], EDX
+    48 00000060 83C701                                              add EDI, 1 ; the rest will be 0 or 1, a byte        ;form the number in base 2
+    49 00000063 BA00000000                                          mov EDX, 0
+    50                                                              
+    51 00000068 83F800                                              cmp EAX, 0
+    52 0000006B 75EE                                                jne .formBase2
+    53 0000006D 83EF01                                      sub EDI, 1
+    54                                                      .printString:
+    55 00000070 B800000000                                            mov EAX, 0
+    56 00000075 8A043E                                                mov AL, [ESI + EDI]
+    57 00000078 50                                                    push EAX
+    58 00000079 68[04000000]                                          push dword number_type                            ;print the numbers in base 2 (in reverse order is the correct order)
+    59 0000007E FF35[0E000000]                                        push dword [file_descriptor2]
+    60 00000084 FF15[00000000]                                        call [fprintf]
+    61 0000008A 83C40C                                                add ESP, 4*3
+    62 0000008D 4F                                                    dec EDI
+    63 0000008E 83FF00                                                cmp EDI, 0
+    64 00000091 7DDD                                                  jge .printString
+    65                                                      
+    66 00000093 6A20                                        push dword " "
+    67 00000095 68[07000000]                                push dword char_space
+    68 0000009A FF35[0E000000]                              push dword [file_descriptor2]       ;print a space between numbers
+    69 000000A0 FF15[00000000]                              call [fprintf]
+    70 000000A6 83C40C                                      add ESP, 4*3
+    71                                                      
+    72                                                      
+    73 000000A9 BA00000000                                  mov EDX, 0
+    74 000000AE B919000000                                  mov ECX, 25
+    75                                                      .clearTheWords:
+    76 000000B3 C7041600000000                                      mov dword [ESI + EDX], 0       ;clear the variable where we store the number
+    77 000000BA 83C204                                              add EDX, 4
+    78 000000BD E2F4                                            loop .clearTheWords
+    79                                                      
+    80 000000BF E965FFFFFF                          jmp .readNumbers
+    81                                              
+    82                                          .outOfLoop:
+    83 000000C4 C3                         ret
